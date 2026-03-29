@@ -1,0 +1,11 @@
+# 忽略那个烦人的超大 MD 文件
+data/jobs-data.md
+# 忽略运行环境
+venv/
+.venv/
+__pycache__/
+.idea/
+.env
+# 忽略 Excel 数据
+data/*.xls
+data/*.xlsx
