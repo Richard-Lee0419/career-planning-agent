@@ -9,7 +9,9 @@ from dotenv import load_dotenv
 from zhipuai import ZhipuAI
 from typing import Optional
 
-# 加载环境变量和初始化大模型
+# ==========================================
+# 1. 基础配置与大模型初始化
+# ==========================================
 load_dotenv()
 api_key = os.getenv("ZHIPUAI_API_KEY")
 if not api_key:
@@ -28,14 +30,13 @@ app.add_middleware(
 )
 
 
-# --- 核心更新 1：定义带 Session 的请求体 ---
+# --- 定义带 Session 的请求体 ---
 class ChatRequest(BaseModel):
     session_id: Optional[str] = None  # 前端传来的会话 ID，用来识别是谁在聊天
     message: str
 
 
-# --- 核心更新 2：建立简单的内存数据库来存储聊天记录 ---
-# 字典结构: {"sess_123": [{"role": "system", "content": "..."}, {"role": "user", "content": "..."}]}
+# --- 建立简单的内存数据库来存储聊天记录 ---
 session_memory = {}
 
 # 系统预设 Prompt（人设）
@@ -43,10 +44,11 @@ SYSTEM_PROMPT = "你是一个专业的职业规划专家。你有能力调用工
 
 
 # ==========================================
-# 模块 A：数据库查询工具 (保持不变)
+# 2. 数据库查询工具（供 AI 调用 & 供 API 使用）
 # ==========================================
 def search_jobs_from_db(keyword: str):
     print(f"🔧 [系统日志] 正在执行数据库查询，关键词: {keyword}")
+    # ⚠️ 请确保 career_project.db 文件在项目根目录下
     conn = sqlite3.connect("career_project.db")
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
@@ -61,7 +63,7 @@ def search_jobs_from_db(keyword: str):
 
 
 # ==========================================
-# 模块 B：工具说明书 (保持不变)
+# 3. 工具说明书（供大模型识别）
 # ==========================================
 tools_description = [
     {
@@ -85,7 +87,34 @@ tools_description = [
 
 
 # ==========================================
-# 模块 C：支持记忆与规范输出的聊天接口
+# 4. 新增：供前端直接调用的岗位列表接口
+# ==========================================
+@app.get("/api/jobs", summary="获取所有岗位列表（纯数据接口）")
+def get_all_jobs(skip: int = 0, limit: int = 20):
+    """
+    供前端（FE）同学直接获取岗位列表的接口（支持分页）。
+    """
+    print("🌐 [系统日志] 收到前端的岗位列表请求")
+    conn = sqlite3.connect("career_project.db")
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    # 查出指定数量的岗位
+    query = "SELECT title, location, salary_range, company FROM jobs LIMIT ? OFFSET ?"
+    cursor.execute(query, (limit, skip))
+    rows = cursor.fetchall()
+    conn.close()
+
+    result = [dict(row) for row in rows]
+    return {
+        "status": "success",
+        "data": result,
+        "total_returned": len(result)
+    }
+
+
+# ==========================================
+# 5. 核心：支持记忆与规范输出的 AI 聊天接口
 # ==========================================
 @app.post("/api/chat")
 async def chat_endpoint(request: ChatRequest):
@@ -113,8 +142,6 @@ async def chat_endpoint(request: ChatRequest):
     )
 
     ai_message = response.choices[0].message
-
-    # --- 核心更新 3：按照 TDD 的 ResultBlock 格式组装返回数据 ---
     blocks = []  # 准备发给前端的积木块
 
     if ai_message.tool_calls:
@@ -146,7 +173,6 @@ async def chat_endpoint(request: ChatRequest):
 
         # 组装返回给前端的 blocks 数组
         blocks.append({"type": "text", "content": final_reply})
-        # 只有在查询了数据库时，才加上 career_recommendations 卡片数据
         if job_data:
             blocks.append({"type": "career_recommendations", "items": job_data})
 
@@ -154,11 +180,9 @@ async def chat_endpoint(request: ChatRequest):
         print("🤖 [系统日志] 直接回答。")
         final_reply = ai_message.content
         session_memory[session_id].append({"role": "assistant", "content": final_reply})
-
-        # 只是闲聊，前端只需要渲染一个文本气泡
         blocks.append({"type": "text", "content": final_reply})
 
-    # 严格按照 TDD 约定的 ACP 协议格式返回
+    # 严格按照你们团队约定的格式返回
     return {
         "sessionId": session_id,
         "role": "assistant",
