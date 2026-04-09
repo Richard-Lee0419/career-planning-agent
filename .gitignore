@@ -9,3 +9,5 @@ __pycache__/
 # 忽略 Excel 数据
 data/*.xls
 data/*.xlsx
+# 忽略所有 SQLite 数据库文件
+*.db
