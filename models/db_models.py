@@ -4,6 +4,8 @@ from sqlalchemy.orm import relationship
 from core.database import Base
 
 
+
+
 # 1. 用户表
 class DBUser(Base):
     __tablename__ = "users"
@@ -32,7 +34,8 @@ class DBUserProfile(Base):
     target_roles = Column(Text)  # 列表转为 JSON 字符串存储
     current_skills = Column(Text)  # 列表转为 JSON 字符串存储
     interests = Column(Text)  # 列表转为 JSON 字符串存储
-
+    certificates = Column(Text, nullable=True)  # 存 JSON 字符串
+    competitiveness_score = Column(Integer, default=0)  # 存分数
     user = relationship("DBUser", back_populates="profiles")
 
 
@@ -76,3 +79,23 @@ class DBChatMessage(Base):
 
     user = relationship("DBUser", back_populates="chats")
 
+# 5. 岗位标准画像表 (Node)
+class DBJobStandardProfile(Base):
+    __tablename__ = "job_standard_profiles"
+
+    id = Column(Integer, primary_key=True, index=True)
+    role_name = Column(String, unique=True, index=True) # 岗位名称 (如: Java后端开发)
+    core_skills = Column(Text)       # 核心技能 (JSON字符串)
+    soft_skills = Column(Text)       # 软素质要求 (JSON字符串)
+    certifications = Column(Text)    # 常见证书要求 (JSON字符串)
+    description = Column(Text)       # 岗位描述
+
+# 6. 岗位关系图谱表 (Edge)
+class DBJobRelation(Base):
+    __tablename__ = "job_relations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    source_role = Column(String, index=True) # 起始岗位
+    target_role = Column(String, index=True) # 目标岗位
+    relation_type = Column(String)           # 关系类型："promotion" (晋升) 或 "transfer" (平调换岗)
+    weight = Column(Integer)                 # 关联度/重合度 (0-100)

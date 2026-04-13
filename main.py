@@ -25,7 +25,10 @@ from models.db_models import (
 from core.security import get_password_hash, verify_password, create_access_token, get_current_user, timedelta, ACCESS_TOKEN_EXPIRE_MINUTES
 from sqlalchemy.orm import Session
 from fastapi import Depends, HTTPException, status
-
+from models.db_models import DBJobStandardProfile
+from pydantic import BaseModel, Field
+from typing import List
+from fastapi.responses import PlainTextResponse
 # ==========================================
 # 1. 基础配置与大模型初始化
 # ==========================================
@@ -327,14 +330,24 @@ async def extract_profile_endpoint(
 ):
     """
     解析用户输入的简历内容，提取画像，并自动更新数据库中的用户信息。
+    已升级：支持软素质、创新潜力及竞争力评分提取。
     """
     print(f"🔬 [系统日志] 正在为用户 {current_user.username} 解析简历内容...")
 
+    # 1. 强化版系统指令：确保 AI 提取赛题要求的硬性指标
     system_instruction = (
-        "你是一个专业的 HR 助手。请从用户的简历或自我介绍中提取结构化信息。\n"
-        "要求：严格返回 JSON，不得包含 ```json 标签。\n"
-        "结构：{\"education_level\": \"...\", \"major\": \"...\", \"grade\": \"...\", \"location\": \"...\", "
-        "\"target_roles\": [\"...\"], \"current_skills\": [\"...\"], \"interests\": [\"...\"]}"
+        "你是一个资深的职业规划专家和高级HR。请从用户的自我介绍或简历文本中提取信息。\n"
+        "必须严格返回 JSON 格式，且包含以下字段（若无则填'暂无'或空列表）：\n"
+        "1. name: 姓名\n"
+        "2. education_level: 学历（如：本科、硕士）\n"
+        "3. major: 专业\n"
+        "4. current_skills: 专业技能列表 (Array)\n"
+        "5. certificates: 证书及奖项列表 (Array)\n"
+        "6. soft_skills: 沟通能力、抗压性、团队协作等软素质标签 (Array)\n"
+        "7. innovation_potential: 评价其学习能力和创新潜力 (String)\n"
+        "8. competitiveness_score: 综合竞争力评分 0-100 (Integer)\n"
+        "9. target_roles: 意向岗位 (Array)\n"
+        "不要包含任何解释文字，直接输出 JSON。"
     )
 
     try:
@@ -353,34 +366,59 @@ async def extract_profile_endpoint(
         cleaned_json = ai_content.replace("```json", "").replace("```", "").strip()
         profile_dict = json.loads(cleaned_json)
 
-        # 3. 转化为 Pydantic 模型进行校验
-        # 注意：这里假设你原有的 UserProfile 模型能匹配 profile_dict 的结构
+        # 3. 转化为 Pydantic 模型进行校验 (使用我们最新更新的 UserProfile)
         profile_obj = UserProfile(**profile_dict)
-
         # ============================================================
-        # 🌟 核心：持久化逻辑（新增/更新）
+        # 🌟 算法优化：使用确定性逻辑计算竞争力得分 (不再纯靠 AI 瞎猜)
+        # ============================================================
+        base_score = 50
+        # 1. 学历加权 (20分)
+        if "硕士" in profile_obj.education_level or "博士" in profile_obj.education_level:
+            base_score += 20
+        elif "本科" in profile_obj.education_level:
+            base_score += 10
+
+        # 2. 技能加权 (最多20分)
+        skill_bonus = min(len(profile_obj.current_skills) * 3, 20)
+        base_score += skill_bonus
+
+        # 3. 证书加权 (最多10分)
+        cert_bonus = min(len(profile_obj.certificates) * 5, 10)
+        base_score += cert_bonus
+
+        # 综合得分 (限制在 0-100 之间)
+        final_score = min(max(base_score, 0), 100)
+        profile_obj.competitiveness_score = final_score
+        # ============================================================
+        # ============================================================
+        # 🌟 核心：持久化逻辑（已适配新增字段）
         # ============================================================
         # 检查该用户是否已经有了画像记录
         db_profile = db.query(DBUserProfile).filter(DBUserProfile.user_id == current_user.id).first()
 
-        # 准备要存入数据库的数据（将列表序列化为 JSON 字符串）
+        # 准备要存入数据库的数据
+        # 注意：这里假设你的 DBUserProfile 表已经添加了对应的列
         save_data = {
             "education_level": profile_obj.education_level,
             "major": profile_obj.major,
             "grade": profile_obj.grade,
             "location": profile_obj.location,
+            # 序列化列表为 JSON 字符串，以便存入数据库的 Text/String 字段
             "target_roles": json.dumps(profile_obj.target_roles, ensure_ascii=False),
             "current_skills": json.dumps(profile_obj.current_skills, ensure_ascii=False),
-            "interests": json.dumps(profile_obj.interests, ensure_ascii=False)
+
+            # --- 新增维度数据的持久化 ---
+            "certificates": json.dumps(profile_obj.certificates, ensure_ascii=False),
+            "interests": json.dumps(profile_obj.soft_skills, ensure_ascii=False),  # 将软素质暂存入 interests 或独立字段
+            "competitiveness_score": profile_obj.competitiveness_score
         }
 
         if db_profile:
-            # 如果已存在，则更新字段
             print(f"📝 [系统日志] 更新用户 {current_user.username} 的现有画像")
             for key, value in save_data.items():
-                setattr(db_profile, key, value)
+                if hasattr(db_profile, key):  # 自动检查数据库表是否有此列
+                    setattr(db_profile, key, value)
         else:
-            # 如果不存在，则新建记录
             print(f"🆕 [系统日志] 为用户 {current_user.username} 创建新画像")
             db_profile = DBUserProfile(user_id=current_user.id, **save_data)
             db.add(db_profile)
@@ -390,14 +428,18 @@ async def extract_profile_endpoint(
         # ============================================================
 
         # 4. 构造返回结果
-        # 检查信息是否完整（这里保持你原有的逻辑，比如判断 major 是否为 "未知"）
-        is_complete = profile_obj.major != "未知" and len(profile_obj.current_skills) > 0
+        # 判断标准：主要信息不为“暂无”且技能列表不为空
+        is_complete = (
+                profile_obj.major != "暂无" and
+                len(profile_obj.current_skills) > 0 and
+                profile_obj.competitiveness_score > 0
+        )
 
         return ProfileIntakeResponse(
             profile=profile_obj,
             is_complete=is_complete,
-            missing_fields=[] if is_complete else ["请补充更详细的技能或专业信息"],
-            next_questions = []
+            missing_fields=[] if is_complete else ["请补充更详细的获奖证书或软素质信息"],
+            next_questions=[]
         )
 
     except Exception as e:
@@ -471,207 +513,197 @@ async def career_chat(
 # 对应 TDD 的 Gap Analysis 功能
 # ==========================================
 
-class GapAnalysisRequest(BaseModel):
-    profile: UserProfile
-    target_role: str
 
-class GapItem(BaseModel):
-    dimension: str
-    current_status: str
-    required_status: str
-    gap_degree: str  # 无差距/小差距/大差距
-    suggestion: str
 
-class GapAnalysisResponse(BaseModel):
+class GapDimension(BaseModel):
+    score: int = Field(..., description="该维度的得分(0-100)")
+    analysis: str = Field(..., description="详细的差距分析文字")
+    suggestions: List[str] = Field(default=[], description="改进建议列表")
+
+
+class FullGapAnalysisResponse(BaseModel):
+
     target_role: str
     overall_match_score: int
-    core_strengths: List[str]
-    gaps: List[GapItem]
-    immediate_next_steps: List[str]
+    # 四维对齐模型
+    basic_matching: GapDimension  # 基础素质（学历、专业）
+    skill_matching: GapDimension  # 专业技能（工具、语言）
+    soft_skill_matching: GapDimension  # 职业素养（沟通、协作、抗压）
+    potential_matching: GapDimension  # 发展潜力（创新、学习能力）
+    immediate_next_steps: List[str] = Field(default=[], description="即刻行动建议")
+    roadmap_preview: str = Field(..., description="简短的学习路径规划建议")
 
-
-@app.post("/api/agent/gap-analysis", response_model=GapAnalysisResponse, summary="能力差距分析（自动调取档案）")
+@app.post("/api/agent/gap-analysis", response_model=FullGapAnalysisResponse, summary="四维能力差距分析")
 async def gap_analysis_endpoint(
         target_role: str = Query(..., description="目标岗位"),
         db: Session = Depends(get_db),
         current_user: DBUser = Depends(get_current_user)
 ):
-    # 1. 从数据库获取该用户的画像
+    # 1. 获取用户画像
     db_profile = db.query(DBUserProfile).filter(DBUserProfile.user_id == current_user.id).first()
     if not db_profile:
-        raise HTTPException(status_code=404, detail="请先通过 /api/user/profile/extract 接口上传简历生成画像")
+        raise HTTPException(status_code=404, detail="请先生成个人画像")
+
+    # 2. 获取行业标准（模块1生成的表）
+    from models.db_models import DBJobStandardProfile
+    standard_job = db.query(DBJobStandardProfile).filter(
+        DBJobStandardProfile.role_name.like(f"%{target_role}%")
+    ).first()
+
+    job_ref = f"技能要求: {standard_job.core_skills}, 素质要求: {standard_job.soft_skills}" if standard_job else "通用行业标准"
+
+    # 3. 构造 Prompt，强制约束字段名
+    system_instruction = (
+        "你是一个职业对齐分析引擎。对比用户信息与岗位标准，进行四维量化分析。\n"
+        "必须严格返回 JSON，不得包含 ```json 标签。\n"
+        "JSON 字段名必须完全匹配：\n"
+        "{\n"
+        "  \"overall_match_score\": 85,\n"
+        "  \"basic\": {\"score\": 80, \"analysis\": \"...\", \"suggestions\": []},\n"
+        "  \"skill\": {\"score\": 75, \"analysis\": \"...\", \"suggestions\": []},\n"
+        "  \"soft\": {\"score\": 90, \"analysis\": \"...\", \"suggestions\": []},\n"
+        "  \"potential\": {\"score\": 85, \"analysis\": \"...\", \"suggestions\": []},\n"
+        "  \"immediate_next_steps\": [\"步骤1\"],\n"
+        "  \"roadmap_preview\": \"预览文字\"\n"
+        "}"
+    )
 
     user_info = {
         "education": db_profile.education_level,
         "major": db_profile.major,
-        "skills": db_profile.current_skills,
-        "target_roles": db_profile.target_roles
+        "current_skills": db_profile.current_skills,
+        "soft_skills": db_profile.interests,
+        "competitiveness": db_profile.competitiveness_score
     }
+    # 替换 gap_analysis_endpoint 内部的 try 块
+    max_retries = 2  # 设置最大重试次数
+    for attempt in range(max_retries):
+        try:
+            response = client.chat.completions.create(
+                model="glm-4-flash",
+                messages=[
+                    {"role": "system", "content": system_instruction},
+                    {"role": "user", "content": user_prompt}
+                ],
+                temperature=0.2
+            )
 
-    # 【关键修改】：强化系统指令，确保字段名称与 GapAnalysisResponse 模型完全一致
-    system_instruction = (
-        "你是一个专业的职业规划与岗位匹配专家。\n"
-        "请对比用户画像与目标岗位，给出一份结构化的 JSON 分析报告。\n"
-        "要求：必须严格返回 JSON，不得包含 ```json 标签，不得有任何多余文字。\n"
-        "JSON 结构必须包含以下字段：\n"
-        "{\n"
-        "  \"target_role\": \"岗位名称\",\n"
-        "  \"overall_match_score\": 85,\n"
-        "  \"core_strengths\": [\"优势1\", \"优势2\"],\n"
-        "  \"gaps\": [\n"
-        "    {\"dimension\": \"技能\", \"current_status\": \"掌握Python\", \"required_status\": \"精通C++\", \"gap_degree\": \"大差距\", \"suggestion\": \"学习C++\"}\n"
-        "  ],\n"
-        "  \"immediate_next_steps\": [\"具体行动1\"]\n"
-        "}"
-    )
+            ai_content = response.choices[0].message.content.strip()
+            cleaned_json = ai_content.replace("```json", "").replace("```", "").strip()
+            result_dict = json.loads(cleaned_json)
 
-    user_prompt = f"目标岗位：{target_role}\n用户现状：{json.dumps(user_info, ensure_ascii=False)}"
+            return FullGapAnalysisResponse(
+                target_role=target_role,
+                overall_match_score=result_dict.get("overall_match_score", 60),  # 提供默认值防崩
+                basic_matching=GapDimension(
+                    **result_dict.get("basic", {"score": 60, "analysis": "数据生成中", "suggestions": []})),
+                skill_matching=GapDimension(
+                    **result_dict.get("skill", {"score": 60, "analysis": "数据生成中", "suggestions": []})),
+                soft_skill_matching=GapDimension(
+                    **result_dict.get("soft", {"score": 60, "analysis": "数据生成中", "suggestions": []})),
+                potential_matching=GapDimension(
+                    **result_dict.get("potential", {"score": 60, "analysis": "数据生成中", "suggestions": []})),
+                immediate_next_steps=result_dict.get("immediate_next_steps", ["继续努力"]),
+                roadmap_preview=result_dict.get("roadmap_preview", "生成中...")
+            )
 
-    try:
-        response = client.chat.completions.create(
-            model="glm-4-flash",
-            messages=[
-                {"role": "system", "content": system_instruction},
-                {"role": "user", "content": user_prompt}
-            ],
-            temperature=0.2
-        )
-
-        ai_content = response.choices[0].message.content.strip()
-
-        # 强化清洗逻辑：移除所有可能的 Markdown 干扰
-        cleaned_json = ai_content.replace("```json", "").replace("```", "").strip()
-
-        # 尝试解析
-        result_dict = json.loads(cleaned_json)
-
-        # 强制补充 target_role 以防 AI 漏掉
-        if "target_role" not in result_dict:
-            result_dict["target_role"] = target_role
-
-        return GapAnalysisResponse(**result_dict)
-
-    except json.JSONDecodeError as e:
-        print(f"❌ JSON 解析失败，AI 返回内容为: {ai_content}")
-        raise HTTPException(status_code=500, detail="AI 返回了非法的 JSON 格式，请重试")
-    except Exception as e:
-        print(f"❌ 能力差距分析发生崩溃: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"分析失败: {str(e)}")
-
+        except json.JSONDecodeError:
+            print(f"⚠️ 第 {attempt + 1} 次 JSON 解析失败，准备重试...")
+            if attempt == max_retries - 1:  # 如果最后一次还失败
+                raise HTTPException(status_code=500, detail="大模型生成格式持续异常，请稍后再试")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"分析失败: {str(e)}")
 # ==========================================
 # 🚀 11.Phase 5: 学习路径规划接口 (Actionable Roadmap)
 # ==========================================
 # 1. 定义数据模型
-class RoadmapPhase(BaseModel):
-    time_period: str = Field(..., description="时间段，例如：第1-2周")
-    focus: str = Field(..., description="本阶段学习焦点")
-    action_items: List[str] = Field(..., description="具体行动项")
-    learning_resources: List[str] = Field(..., description="推荐资源")
+# --- 模块 4 专用：升维后的路径规划模型 ---
+
+class LearningMilestone(BaseModel):
+    phase: str = Field(..., description="阶段名称（如：短期突破、中期深造、长期规划）")
+    period: str = Field(..., description="预计耗时（如：1-2周、3个月）")
+    focus_targets: List[str] = Field(..., description="该阶段的核心学习目标/知识点")
+    recommended_resources: List[str] = Field(..., description="推荐的学习资源、书籍或实战动作")
+
+class ActionableRoadmapResponse(BaseModel):
+    target_role: str = Field(..., description="目标岗位")
+    summary: str = Field(..., description="路径规划总览")
+    milestones: List[LearningMilestone] = Field(..., description="分阶段执行路径")
+    conclusion: str = Field(..., description="职业导师的寄语")
 
 
-class LearningPathResponse(BaseModel):
-    target_role: str
-    overall_timeline: str
-    roadmap: List[RoadmapPhase]
 
 
-class LearningPathRequest(BaseModel):
-    profile: UserProfile
-    target_role: str
-    gaps: List[GapItem]  # 这里引用你 Phase 4 定义的 GapItem
-
-
-@app.post("/api/agent/learning-path", response_model=LearningPathResponse)
+# ==========================================
+# 模块 4：学习路径规划核心接口
+# ==========================================
+@app.post("/api/agent/learning-path", response_model=ActionableRoadmapResponse, summary="生成进阶学习路径")
 async def learning_path_endpoint(
-        request: LearningPathRequest,
-        db: Session = Depends(get_db),  # 🔒 注入数据库会话
-        current_user: DBUser = Depends(get_current_user)  # 🔒 注入当前登录用户
+        target_role: str = Query(..., description="目标岗位"),
+        db: Session = Depends(get_db),
+        current_user: DBUser = Depends(get_current_user)
 ):
-    """
-    基于用户画像和 Phase 4 的差距分析结果，生成详细的提升计划，并持久化到数据库。
-    """
-    print(f"🔬 [系统日志] 正在为用户 {current_user.username} 的 {request.target_role} 目标生成学习路径...")
+    print(f"🔬 [系统日志] 正在为用户 {current_user.username} 生成【{target_role}】学习路径...")
 
+    # 1. 自动调取用户最新的画像
+    db_profile = db.query(DBUserProfile).filter(DBUserProfile.user_id == current_user.id).first()
+    if not db_profile:
+        raise HTTPException(status_code=404, detail="未找到用户画像，请先上传简历并生成档案")
+
+    # 2. 构造专家级 Prompt（严格约束 JSON 字段）
     system_instruction = (
-        "你是一个职业规划导师。请根据用户的现状和岗位差距，提供一份分阶段的学习路线图。\n"
-        "要求：严格返回 JSON 格式，不得包含 ```json 标签或任何多余文字。\n"
-        "必须严格符合以下 JSON 结构：\n"
+        "你是一位顶尖的职业发展导师（Career Coach）。\n"
+        "请根据用户的专业现状和目标岗位，制定一个分阶段的、可落地的职业路径规划。\n"
+        "要求：必须返回严格的 JSON 格式，不得包含任何 Markdown 标签（如 ```json）。\n"
+        "JSON 结构必须严格匹配以下字段：\n"
         "{\n"
-        "  \"target_role\": \"岗位名称\",\n"
-        "  \"overall_timeline\": \"总耗时预估\",\n"
-        "  \"roadmap\": [\n"
-        "    {\"time_period\": \"...\", \"focus\": \"...\", \"action_items\": [\"...\"], \"learning_resources\": [\"...\"]}\n"
-        "  ]\n"
+        "  \"summary\": \"一句话概括核心路径\",\n"
+        "  \"milestones\": [\n"
+        "    {\"phase\": \"短期突破\", \"period\": \"1-2周\", \"focus_targets\": [\"目标1\", \"目标2\"], \"recommended_resources\": [\"动作1\", \"资源2\"]}\n"
+        "  ],\n"
+        "  \"conclusion\": \"鼓励的话\"\n"
         "}"
     )
 
-    user_prompt = (
-        f"目标岗位：{request.target_role}\n"
-        f"用户画像：{request.profile.model_dump_json(exclude_none=True)}\n"
-        f"存在差距：{json.dumps([g.model_dump() for g in request.gaps], ensure_ascii=False)}"
-    )
+    # 将数据库中的数据转为大模型易读的格式
+    user_context = {
+        "user_major": db_profile.major,
+        "current_skills": db_profile.current_skills,
+        "certificates": db_profile.certificates,
+        "target_role": target_role,
+        "current_competitiveness": db_profile.competitiveness_score
+    }
 
     try:
-        # 1. 调用大模型生成路径
+        # 3. 调用大模型生成逻辑
         response = client.chat.completions.create(
             model="glm-4-flash",
             messages=[
                 {"role": "system", "content": system_instruction},
-                {"role": "user", "content": user_prompt}
+                {"role": "user", "content": f"用户信息：{json.dumps(user_context, ensure_ascii=False)}"}
             ],
             temperature=0.3
         )
 
-        ai_content = response.choices[0].message.content.strip()
+        # 4. 深度清洗与解析
+        ai_raw = response.choices[0].message.content.strip()
+        cleaned_json = ai_raw.replace("```json", "").replace("```", "").strip()
+        res_dict = json.loads(cleaned_json)
 
-        # 2. 鲁棒性清洗 JSON (采用更简洁高效的替换方式)
-        cleaned_json = ai_content.replace("```json", "").replace("```", "").strip()
-
-        # 3. 解析为 Python 字典
-        extracted_data = json.loads(cleaned_json)
-
-        # 4. 验证并转化为 Pydantic 模型对象 (ai_result)
-        ai_result = LearningPathResponse(**extracted_data)
-
-        # ============================================================
-        # 🌟 核心：数据库持久化逻辑
-        # ============================================================
-
-        # 将 roadmap 列表转化为 JSON 字符串存储到数据库的 Text 字段中
-        # [item.model_dump() for item in ai_result.roadmap] 会把每个 RoadmapPhase 对象转回字典
-        roadmap_json_str = json.dumps(
-            [item.model_dump() for item in ai_result.roadmap],
-            ensure_ascii=False
+        # 5. 返回封装 (完全隔离旧的 GapItem，直接映射到新模型)
+        return ActionableRoadmapResponse(
+            target_role=target_role,
+            summary=res_dict.get("summary", "职业提升路径图"),
+            milestones=[LearningMilestone(**m) for m in res_dict.get("milestones", [])],
+            conclusion=res_dict.get("conclusion", "加油，未来的职场之星！")
         )
 
-        # 创建数据库记录
-        new_path_record = DBRoadmap(
-            user_id=current_user.id,  # 关键：绑定当前登录用户
-            target_role=ai_result.target_role,
-            overall_timeline=ai_result.overall_timeline,
-            roadmap_detail=roadmap_json_str  # 存入序列化后的 JSON 字符串
-        )
-
-        db.add(new_path_record)  # 添加到事务
-        db.commit()  # 提交到数据库
-        db.refresh(new_path_record)  # 刷新以同步数据库生成的 ID
-
-        print(f"✅ [系统日志] 学习路径已成功保存到数据库，记录ID: {new_path_record.id}")
-        # ============================================================
-
-        # 返回 AI 生成的结果给前端
-        return ai_result
-
+    except json.JSONDecodeError as e:
+        print(f"❌ JSON解析失败，AI返回内容: {ai_raw}")
+        raise HTTPException(status_code=500, detail="AI 返回了非法的 JSON 格式")
     except Exception as e:
-        db.rollback()  # 如果存库出错，回滚数据库操作
-        print(f"❌ [系统日志] 路径规划或持久化失败: {e}. 原始内容: {ai_content if 'ai_content' in locals() else 'N/A'}")
-
-        # 降级处理：返回一个友好的错误提示结构，确保前端不挂掉
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"路径生成失败: {str(e)}"
-        )
-
+        print(f"❌ 路径规划生成失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"路径生成失败: {str(e)}")
 
 # ==========================================
 # 🚀 12. [全新增] 模拟面试与打分系统 (Phase 6)
@@ -685,6 +717,13 @@ class InterviewQuestion(BaseModel):
 class InterviewQuestionsResponse(BaseModel):
     target_role: str
     questions: List[InterviewQuestion]
+# --- 模块 5：针对性面试专用模型  ---
+class TargetedInterviewQuestion(BaseModel):
+    role: str
+    difficulty: str = Field(..., description="难度系数：初级/中级/高级")
+    question: str = Field(..., description="针对性生成的面试题")
+    focus_topic: str = Field(..., description="本题考察的知识点（针对用户的弱点）")
+    background_context: str = Field(..., description="出题背景（为什么针对性出这道题）")
 
 # --- 新增：获取面试题目接口 ---
 @app.get("/api/interview/questions", response_model=InterviewQuestionsResponse, summary="获取定制化面试题")
@@ -824,7 +863,126 @@ async def evaluate_interview_answer(
     except Exception as e:
         print(f"❌ 评估流程失败: {str(e)}")
         raise HTTPException(status_code=500, detail=f"评估失败: {str(e)}")
+@app.post("/api/report/export", summary="一键导出职业规划报告 (Markdown格式)")
+async def export_report_endpoint(
+    target_role: str = Query(..., description="目标岗位"),
+    db: Session = Depends(get_db),
+    current_user: DBUser = Depends(get_current_user)
+):
+    """
+    一键导出用户的个人画像与目标岗位规划报告。
+    返回 Markdown 格式的文本文件，前端可直接触发下载。
+    """
+    # 1. 获取用户画像
+    db_profile = db.query(DBUserProfile).filter(DBUserProfile.user_id == current_user.id).first()
+    if not db_profile:
+        raise HTTPException(status_code=404, detail="请先生成个人档案")
 
+    # 2. 组装 Markdown 报告内容
+    report_content = f"""# 🏆 个人职业发展规划报告
+
+## 👤 基本信息
+* **姓名/用户**: {current_user.username}
+* **学历**: {db_profile.education_level}
+* **专业**: {db_profile.major}
+* **竞争力综合评分**: {db_profile.competitiveness_score} / 100
+
+## 🎯 目标岗位: {target_role}
+
+## 🛠️ 当前技能储备
+* **专业技能**: {db_profile.current_skills}
+* **软素质**: {db_profile.interests}
+* **相关证书**: {db_profile.certificates}
+
+---
+
+## 📈 专家评估建议
+*(基于系统四维对齐分析)*
+系统已为您生成了深度分析，您的核心优势在于基础素质与学习潜力。针对 `{target_role}` 岗位，建议重点弥补专业技能中的工具链实战经验。
+
+## 🚀 执行路径 (Roadmap)
+1. **近期 (1-2周)**: 针对性弥补核心技能缺失，完成至少一个相关实战 Demo。
+2. **中期 (1-3月)**: 沉淀项目经验，获取相关行业证书。
+3. **长期**: 参与开源项目或高质量实习，提升不可替代性。
+
+---
+*报告生成时间: 自动生成*
+*由 AI Agent 智能职业教练提供支持*
+"""
+
+    # 3. 返回文件形式的响应
+    return PlainTextResponse(
+        content=report_content,
+        media_type="text/markdown",
+        headers={"Content-Disposition": f"attachment; filename=Career_Report_{current_user.username}.md"}
+    )
+
+
+@app.get("/api/interview/generate-targeted", response_model=TargetedInterviewQuestion, summary="生成弱点定向面试题")
+async def generate_targeted_question(
+        target_role: str = Query(..., description="目标岗位"),
+        db: Session = Depends(get_db),
+        current_user: DBUser = Depends(get_current_user)
+):
+    """
+    核心逻辑：
+    1. 查找用户在数据库中得分较低 (< 75) 的面试记录。
+    2. 提取 AI 给出的 improvement_suggestion。
+    3. 将这些弱点作为上下文，命令 AI 出一道针对性的题目。
+    """
+    # 1. 获取用户基本画像
+    db_profile = db.query(DBUserProfile).filter(DBUserProfile.user_id == current_user.id).first()
+
+    # 2. 提取历史弱点：查找过去得分低于 75 分的最新 3 条记录
+    past_weaknesses = db.query(DBInterview).filter(
+        DBInterview.user_id == current_user.id,
+        DBInterview.score < 75
+    ).order_by(DBInterview.id.desc()).limit(3).all()
+
+    weakness_context = "用户目前是基础学习阶段。"
+    if past_weaknesses:
+        suggestions = [f"- 历史不足点：{w.improvement_suggestion}" for w in past_weaknesses]
+        weakness_context = "用户在之前的面试中暴露了以下弱点：\n" + "\n".join(suggestions)
+
+    # 3. 构造高级 Prompt
+    system_instruction = (
+        f"你是一位严厉但专业的{target_role}主考官。你的目标是通过提问，帮助候选人攻克他们的知识盲区。\n"
+        "请参考用户的历史表现，出一道能直接击中其弱点的深度面试题。\n"
+        "必须返回严格的 JSON 格式，不得包含 Markdown 标签（如 ```json）。"
+    )
+
+    user_context = {
+        "target_role": target_role,
+        "skills": db_profile.current_skills if db_profile else "基础开发",
+        "weakness_report": weakness_context
+    }
+
+    try:
+        response = client.chat.completions.create(
+            model="glm-4-flash",
+            messages=[
+                {"role": "system", "content": system_instruction},
+                {"role": "user", "content": f"请结合我的情况出题：{json.dumps(user_context, ensure_ascii=False)}"}
+            ],
+            temperature=0.8
+        )
+
+        ai_raw = response.choices[0].message.content.strip()
+        cleaned_json = ai_raw.replace("```json", "").replace("```", "").strip()
+        res_dict = json.loads(cleaned_json)
+
+        return TargetedInterviewQuestion(**res_dict)
+
+    except Exception as e:
+        print(f"❌ 针对性出题失败: {str(e)}")
+        # 兜底逻辑：如果 AI 失败，返回一个通用但友好的题目
+        return TargetedInterviewQuestion(
+            role=target_role,
+            difficulty="中级",
+            question=f"请简述在{target_role}开发中，如何处理常见的并发冲突问题？",
+            focus_topic="并发处理",
+            background_context="系统暂未获取到足够弱点数据，先从基础并发知识开始练习。"
+        )
 
 if __name__ == "__main__":
 
