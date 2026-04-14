@@ -37,6 +37,7 @@ import time
 import asyncio
 from pathlib import Path
 from fastapi import BackgroundTasks
+import base64
 # ==========================================
 # 1. 基础配置与大模型初始化
 # ==========================================
@@ -369,36 +370,48 @@ class ProfileIntakeResponse(BaseModel):
 # 语音处理模块 (STT)
 # ==========================================
 @app.post("/api/audio/stt", summary="语音识别：将用户语音转为文字")
-async def speech_to_text(
-        file: UploadFile = File(...),
-        current_user: DBUser = Depends(get_current_user)  # 建议加上鉴权，防止接口被盗刷
-):
-    """
-    接收前端录制的语音文件 (wav/mp3)，调用智谱音频接口转文字
-    """
-    # 生成唯一文件名防止并发冲突
-    file_ext = file.filename.split(".")[-1]
-    temp_path = f"{AUDIO_DIR}/{uuid.uuid4()}.{file_ext}"
-
-    with open(temp_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+async def speech_to_text(file: UploadFile = File(...)):
+    temp_file_path = f"temp_{uuid.uuid4()}_{file.filename}"
 
     try:
-        # 💡 注意：此处调用的是智谱音频转文字接口
-        # 确保你的 client 对象已经初始化
-        with open(temp_path, "rb") as audio_file:
-            response = client.audio.transcriptions.create(
-                model="cogvlm-2-audio",  # 确认你购买/使用的模型名称
-                file=audio_file
-            )
-        return {"text": response.text, "status": "success"}
+        # 1. 先保存文件到本地
+        with open(temp_file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+        # 2. 将音频文件转为 base64 编码（glm-4-voice 的要求）
+        with open(temp_file_path, "rb") as audio_file:
+            audio_base64 = base64.b64encode(audio_file.read()).decode('utf-8')
+
+        # 3. 调用 glm-4-voice 模型进行“语音转文字”
+        # 这个模型是对话式的，我们直接让它“转录这段语音”
+        response = client.chat.completions.create(
+            model="glm-4-voice",  # 🚀 换成这个全能语音模型
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": "请将这段语音内容转录为文字，不要输出多余的解释，直接给结果。"},
+                        {"type": "input_audio", "input_audio": {"data": audio_base64, "format": "wav"}}
+                        # 格式根据实际录音修改，wav/mp3等
+                    ]
+                }
+            ]
+        )
+
+        # 4. 获取识别结果
+        result_text = response.choices[0].message.content.strip()
+        print(f"✅ GLM-4-Voice 识别成功: {result_text}")
+
+        return {"text": result_text}
+
     except Exception as e:
         print(f"❌ 语音识别失败: {str(e)}")
-        return {"text": "", "status": "error", "msg": str(e)}
+        return {"error": str(e)}
+
     finally:
-        # 识别完立即删除临时音频文件，节省服务器空间
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
+        # 5. 清理临时文件
+        if os.path.exists(temp_file_path):
+            os.remove(temp_file_path)
 
 @app.post("/api/user/profile/extract", response_model=ProfileIntakeResponse, summary="从简历/介绍中提取画像并持久化")
 async def extract_profile_endpoint(
