@@ -29,6 +29,14 @@ from models.db_models import DBJobStandardProfile
 from pydantic import BaseModel, Field
 from typing import List
 from fastapi.responses import PlainTextResponse
+from fastapi.responses import FileResponse
+import shutil
+from fastapi import UploadFile, File
+from fastapi.staticfiles import StaticFiles
+import time
+import asyncio
+from pathlib import Path
+from fastapi import BackgroundTasks
 # ==========================================
 # 1. 基础配置与大模型初始化
 # ==========================================
@@ -41,6 +49,41 @@ client = ZhipuAI(api_key=api_key)
 
 
 app = FastAPI(title="职业规划 Agent 后端 完整版")
+# 创建语音存储目录
+AUDIO_DIR = "static/audio"
+if not os.path.exists(AUDIO_DIR):
+    os.makedirs(AUDIO_DIR, exist_ok=True)
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+
+async def auto_cleanup_audio(interval_seconds: int = 86400):
+    """
+    后台清理任务：默认每24小时运行一次，删除存活超过24小时的音频文件
+    """
+    while True:
+        print("🧹 [系统任务] 正在扫描过期语音文件...")
+        now = time.time()
+        audio_path = Path(AUDIO_DIR)
+
+        if audio_path.exists():
+            count = 0
+            for file in audio_path.glob("*.mp3"):
+                # 获取文件最后修改时间，如果早于 24 小时前，则删除
+                if now - file.stat().st_mtime > 86400:
+                    try:
+                        file.unlink()
+                        count += 1
+                    except Exception as e:
+                        print(f"❌ 删除文件 {file.name} 失败: {e}")
+            print(f"✅ 清理完成，共删除 {count} 个过期文件。")
+
+        # 挂起任务，等待下一次巡逻
+        await asyncio.sleep(interval_seconds)
+# --- 2. 在项目启动时挂载该任务 ---
+@app.on_event("startup")
+async def startup_event():
+    # 使用 create_task 让它在后台独立运行，不阻塞主程序
+    asyncio.create_task(auto_cleanup_audio())
 
 app.add_middleware(
     CORSMiddleware,
@@ -321,6 +364,41 @@ class ProfileIntakeResponse(BaseModel):
     missing_fields: List[str]
     next_questions: List[str] = []
 
+
+# ==========================================
+# 语音处理模块 (STT)
+# ==========================================
+@app.post("/api/audio/stt", summary="语音识别：将用户语音转为文字")
+async def speech_to_text(
+        file: UploadFile = File(...),
+        current_user: DBUser = Depends(get_current_user)  # 建议加上鉴权，防止接口被盗刷
+):
+    """
+    接收前端录制的语音文件 (wav/mp3)，调用智谱音频接口转文字
+    """
+    # 生成唯一文件名防止并发冲突
+    file_ext = file.filename.split(".")[-1]
+    temp_path = f"{AUDIO_DIR}/{uuid.uuid4()}.{file_ext}"
+
+    with open(temp_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    try:
+        # 💡 注意：此处调用的是智谱音频转文字接口
+        # 确保你的 client 对象已经初始化
+        with open(temp_path, "rb") as audio_file:
+            response = client.audio.transcriptions.create(
+                model="cogvlm-2-audio",  # 确认你购买/使用的模型名称
+                file=audio_file
+            )
+        return {"text": response.text, "status": "success"}
+    except Exception as e:
+        print(f"❌ 语音识别失败: {str(e)}")
+        return {"text": "", "status": "error", "msg": str(e)}
+    finally:
+        # 识别完立即删除临时音频文件，节省服务器空间
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
 
 @app.post("/api/user/profile/extract", response_model=ProfileIntakeResponse, summary="从简历/介绍中提取画像并持久化")
 async def extract_profile_endpoint(
@@ -632,40 +710,23 @@ class ActionableRoadmapResponse(BaseModel):
     conclusion: str = Field(..., description="职业导师的寄语")
 
 
-
-
 # ==========================================
-# 模块 4：学习路径规划核心接口
+# 模块 4：学习路径规划核心接口 (🔥 已升级：生成器-反馈器 对抗架构)
 # ==========================================
-@app.post("/api/agent/learning-path", response_model=ActionableRoadmapResponse, summary="生成进阶学习路径")
+@app.post("/api/agent/learning-path", response_model=ActionableRoadmapResponse,
+          summary="生成进阶学习路径 (Actor-Critic架构)")
 async def learning_path_endpoint(
         target_role: str = Query(..., description="目标岗位"),
         db: Session = Depends(get_db),
         current_user: DBUser = Depends(get_current_user)
 ):
-    print(f"🔬 [系统日志] 正在为用户 {current_user.username} 生成【{target_role}】学习路径...")
+    print(f"\n🔬 [系统日志] 正在为用户 {current_user.username} 启动【多智能体协同】生成学习路径...")
 
     # 1. 自动调取用户最新的画像
     db_profile = db.query(DBUserProfile).filter(DBUserProfile.user_id == current_user.id).first()
     if not db_profile:
         raise HTTPException(status_code=404, detail="未找到用户画像，请先上传简历并生成档案")
 
-    # 2. 构造专家级 Prompt（严格约束 JSON 字段）
-    system_instruction = (
-        "你是一位顶尖的职业发展导师（Career Coach）。\n"
-        "请根据用户的专业现状和目标岗位，制定一个分阶段的、可落地的职业路径规划。\n"
-        "要求：必须返回严格的 JSON 格式，不得包含任何 Markdown 标签（如 ```json）。\n"
-        "JSON 结构必须严格匹配以下字段：\n"
-        "{\n"
-        "  \"summary\": \"一句话概括核心路径\",\n"
-        "  \"milestones\": [\n"
-        "    {\"phase\": \"短期突破\", \"period\": \"1-2周\", \"focus_targets\": [\"目标1\", \"目标2\"], \"recommended_resources\": [\"动作1\", \"资源2\"]}\n"
-        "  ],\n"
-        "  \"conclusion\": \"鼓励的话\"\n"
-        "}"
-    )
-
-    # 将数据库中的数据转为大模型易读的格式
     user_context = {
         "user_major": db_profile.major,
         "current_skills": db_profile.current_skills,
@@ -675,35 +736,79 @@ async def learning_path_endpoint(
     }
 
     try:
-        # 3. 调用大模型生成逻辑
-        response = client.chat.completions.create(
+        # ====================================================
+        # 🟢 第一阶段：生成器 (Generator) 起草初稿
+        # ====================================================
+        generator_instruction = (
+            "你是一个起草员。请根据用户现状，快速生成一个职业路径规划初稿。\n"
+            "必须返回严格 JSON：{\"summary\": \"...\", \"milestones\": [{\"phase\": \"...\", \"period\": \"...\", \"focus_targets\": [], \"recommended_resources\": []}], \"conclusion\": \"...\"}"
+        )
+
+        gen_response = client.chat.completions.create(
             model="glm-4-flash",
             messages=[
-                {"role": "system", "content": system_instruction},
+                {"role": "system", "content": generator_instruction},
                 {"role": "user", "content": f"用户信息：{json.dumps(user_context, ensure_ascii=False)}"}
             ],
-            temperature=0.3
+            temperature=0.5
+        )
+        draft_json_str = gen_response.choices[0].message.content.strip().replace("```json", "").replace("```", "")
+
+        print(f"✅ [生成器] 初稿起草完毕，正在提交给反馈器(Critic)审查...")
+
+        # ====================================================
+        # 🔴 第二阶段：反馈器 (Critic) 审查并重构
+        # ====================================================
+        critic_instruction = (
+            "你是一位极其严苛的职场导师和技术架构师（Critic）。"
+            "你的任务是审查【起草员】生成的学习路径初稿。找出其中的空洞、过于宽泛、不切实际或缺乏深度的地方。\n"
+            "请直接输出一份【打分评价】以及【深度重构后的终稿】。\n"
+            "必须严格返回 JSON，结构如下：\n"
+            "{\n"
+            "  \"critic_score\": 75,\n"
+            "  \"critic_comments\": \"批评意见，例如：太笼统，缺少具体的开源项目推荐...\",\n"
+            "  \"revised_roadmap\": {\n"
+            "    \"summary\": \"...\",\n"
+            "    \"milestones\": [{\"phase\": \"...\", \"period\": \"...\", \"focus_targets\": [], \"recommended_resources\": []}],\n"
+            "    \"conclusion\": \"...\"\n"
+            "  }\n"
+            "}"
         )
 
-        # 4. 深度清洗与解析
-        ai_raw = response.choices[0].message.content.strip()
-        cleaned_json = ai_raw.replace("```json", "").replace("```", "").strip()
-        res_dict = json.loads(cleaned_json)
+        critic_response = client.chat.completions.create(
+            model="glm-4-flash",
+            messages=[
+                {"role": "system", "content": critic_instruction},
+                {"role": "user",
+                 "content": f"目标岗位：{target_role}\n用户真实能力基底：{json.dumps(user_context, ensure_ascii=False)}\n\n【生成器初稿】：{draft_json_str}"}
+            ],
+            temperature=0.3  # 降低温度，确保严谨性
+        )
 
-        # 5. 返回封装 (完全隔离旧的 GapItem，直接映射到新模型)
+        critic_raw = critic_response.choices[0].message.content.strip().replace("```json", "").replace("```", "")
+        critic_data = json.loads(critic_raw)
+
+        # 打印终端日志，供演示时展示 AI 内部博弈过程
+        print(f"🔥 [反馈器] 审核完成！打分: {critic_data.get('critic_score', 0)}/100")
+        print(f"📝 [反馈器意见]: {critic_data.get('critic_comments', '无')}")
+        print(f"✨ [系统] 已采用重构后的高质量规划路径返回给用户。")
+
+        # ====================================================
+        # 🔵 第三阶段：提取最终高价值数据返回
+        # ====================================================
+        final_roadmap = critic_data.get("revised_roadmap", {})
+
         return ActionableRoadmapResponse(
             target_role=target_role,
-            summary=res_dict.get("summary", "职业提升路径图"),
-            milestones=[LearningMilestone(**m) for m in res_dict.get("milestones", [])],
-            conclusion=res_dict.get("conclusion", "加油，未来的职场之星！")
+            summary=final_roadmap.get("summary", "职业提升路径图"),
+            milestones=[LearningMilestone(**m) for m in final_roadmap.get("milestones", [])],
+            conclusion=final_roadmap.get("conclusion", "经历严苛审查的路线图，请严格执行！")
         )
 
-    except json.JSONDecodeError as e:
-        print(f"❌ JSON解析失败，AI返回内容: {ai_raw}")
-        raise HTTPException(status_code=500, detail="AI 返回了非法的 JSON 格式")
     except Exception as e:
-        print(f"❌ 路径规划生成失败: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"路径生成失败: {str(e)}")
+        print(f"❌ 路径规划生成崩溃: {str(e)}")
+        # 降级容错逻辑：如果反馈器 JSON 解析失败，至少保证前端不崩
+        raise HTTPException(status_code=500, detail=f"多智能体协同生成失败: {str(e)}")
 
 # ==========================================
 # 🚀 12. [全新增] 模拟面试与打分系统 (Phase 6)
@@ -725,47 +830,102 @@ class TargetedInterviewQuestion(BaseModel):
     focus_topic: str = Field(..., description="本题考察的知识点（针对用户的弱点）")
     background_context: str = Field(..., description="出题背景（为什么针对性出这道题）")
 
+class TargetedInterviewWithAudioResponse(BaseModel):
+    question_data: TargetedInterviewQuestion
+    audio_url: Optional[str] = None
+
+# 通用面试题的单个条目模型
+class GeneralQuestionItem(BaseModel):
+    id: int
+    topic: str
+    question: str
+    audio_url: Optional[str] = None
+
+# 接口最终返回的模型
+class GeneralInterviewResponse(BaseModel):
+    role: str
+    questions: List[GeneralQuestionItem]
+
+def task_generate_tts(text: str, save_path: str):
+    """
+    具体的语音合成后台任务，由 BackgroundTasks 调用
+    """
+    try:
+        print(f"🎙️ [后台任务] 正在合成面试题语音...")
+        # 调用智谱语音合成接口
+        tts_response = client.audio.speech.create(
+            model="cogview-3", # 请确保你的 API 权限支持此模型名
+            voice="charles",   # charles(成熟男声), lily(亲切女声)
+            input=text
+        )
+        # 将流式数据保存为本地 mp3 文件
+        tts_response.stream_to_file(save_path)
+        print(f"✅ [后台任务] 语音文件已生成: {save_path}")
+    except Exception as e:
+        print(f"❌ [后台任务] 语音合成失败: {str(e)}")
 # --- 新增：获取面试题目接口 ---
-@app.get("/api/interview/questions", response_model=InterviewQuestionsResponse, summary="获取定制化面试题")
-async def get_interview_questions(
+@app.get("/api/interview/questions", response_model=GeneralInterviewResponse,
+         summary="通用面试：多维度题目生成（带异步语音）")
+async def get_general_questions(
+        background_tasks: BackgroundTasks,  # 引入后台任务
         target_role: str = Query(..., description="目标岗位"),
+        focus_topics: str = Query("基础知识, 实战经验", description="考察重点，用逗号分隔"),
+        db: Session = Depends(get_db),
         current_user: DBUser = Depends(get_current_user)
 ):
-    # 将逻辑分为“身份设定”和“具体任务”
-    system_instruction = "你是一个资深的面试官，擅长根据岗位需求挖掘候选人的技术深度。"
+    """
+    生成一组（3-5道）针对目标岗位的通用面试题，并异步生成第一道题的语音。
+    """
+    print(f"📋 [系统日志] 正在为用户 {current_user.username} 生成通用练习题...")
 
-    user_prompt = (
-        f"请针对【{target_role}】这个岗位，生成3道高质量的面试题。\n"
-        "要求：返回严格的 JSON 格式，包含以下字段：\n"
-        "- target_role: 岗位名称\n"
-        "- questions: 数组，每个元素包含 id (整数), question (字符串), dimension (考察维度)。\n"
-        "注意：直接返回 JSON 字符串，不要包含 ```json 等 Markdown 标签。"
+    system_instruction = (
+        f"你是一位资深的{target_role}主考官。请根据考察重点：[{focus_topics}]，生成3-5道面试题。\n"
+        "要求：题目由浅入深，涵盖基础理论与场景应用。\n"
+        "必须返回严格的 JSON 数组格式，每个对象包含：id(int), topic(str), question(str)。\n"
+        "不要包含任何 Markdown 标签。"
     )
 
     try:
+        # 1. 调用大模型生成一组题目
         response = client.chat.completions.create(
             model="glm-4-flash",
-            messages=[
-                {"role": "system", "content": system_instruction},
-                {"role": "user", "content": user_prompt}  # 添加 user 角色消息
-            ],
+            messages=[{"role": "system", "content": system_instruction}],
             temperature=0.7
         )
-        ai_content = response.choices[0].message.content.strip()
 
-        # 鲁棒性清洗
-        cleaned_json = ai_content.replace("```json", "").replace("```", "").strip()
-        result_dict = json.loads(cleaned_json)
+        ai_raw = response.choices[0].message.content.strip().replace("```json", "").replace("```", "")
+        raw_questions = json.loads(ai_raw)
 
-        # 补全可能缺失的字段
-        if "target_role" not in result_dict:
-            result_dict["target_role"] = target_role
+        final_questions = []
+        for index, item in enumerate(raw_questions):
+            # 2. 为每一道题预设一个唯一的语音文件名
+            audio_filename = f"gen_q_{uuid.uuid4()}.mp3"
+            audio_save_path = os.path.join(AUDIO_DIR, audio_filename)
 
-        return InterviewQuestionsResponse(**result_dict)
+            # 3. 🔴 关键优化：将第一道题（或全部题）加入异步语音合成
+            # 为了节省 API 流量和服务器空间，建议演示时仅自动生成第一道题的语音
+            if index == 0:
+                background_tasks.add_task(task_generate_tts, item["question"], audio_save_path)
+                audio_link = f"/static/audio/{audio_filename}"
+            else:
+                # 其他题目可以设置成“点击后再生成”，或这里暂时给 None
+                audio_link = None
+
+            final_questions.append(GeneralQuestionItem(
+                id=item.get("id", index + 1),
+                topic=item.get("topic", "通用"),
+                question=item.get("question", ""),
+                audio_url=audio_link
+            ))
+
+        return GeneralInterviewResponse(
+            role=target_role,
+            questions=final_questions
+        )
 
     except Exception as e:
-        print(f"❌ 生成题目失败: {e}")
-        raise HTTPException(status_code=500, detail=f"生成题目失败: {str(e)}")
+        print(f"❌ 通用出题失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="面试题生成失败，请稍后重试")
 
 class MockInterviewRequest(BaseModel):
     target_role: str = Field(..., description="目标岗位，如：Python后端开发")
@@ -918,36 +1078,75 @@ async def export_report_endpoint(
     )
 
 
-@app.get("/api/interview/generate-targeted", response_model=TargetedInterviewQuestion, summary="生成弱点定向面试题")
+# ==========================================
+# 模块 5：针对性面试生成 (🔥 已升级：智能上下文压缩 Context Compression)
+# ==========================================
+
+
+
+# ==========================================
+# 模块 5：针对性面试生成 (🔥 已升级：智能上下文压缩 + TTS 语音同步)
+# ==========================================
+def task_generate_tts(text: str, save_path: str):
+    """
+    具体的语音合成逻辑，将被放在后台执行
+    """
+    try:
+        print(f"🎙️ [后台任务] 开始为新题目生成语音...")
+        tts_response = client.audio.speech.create(
+            model="cogview-3", # 确保模型名正确
+            voice="charles",
+            input=text
+        )
+        tts_response.stream_to_file(save_path)
+        print(f"✅ [后台任务] 语音合成成功: {save_path}")
+    except Exception as e:
+        print(f"❌ [后台任务] 语音合成失败: {str(e)}")
+
+
+@app.get("/api/interview/generate-targeted", response_model=TargetedInterviewWithAudioResponse,
+         summary="生成弱点定向面试题（异步语音版）")
 async def generate_targeted_question(
+        background_tasks: BackgroundTasks,  # 注入后台任务组件
         target_role: str = Query(..., description="目标岗位"),
         db: Session = Depends(get_db),
         current_user: DBUser = Depends(get_current_user)
 ):
-    """
-    核心逻辑：
-    1. 查找用户在数据库中得分较低 (< 75) 的面试记录。
-    2. 提取 AI 给出的 improvement_suggestion。
-    3. 将这些弱点作为上下文，命令 AI 出一道针对性的题目。
-    """
-    # 1. 获取用户基本画像
+    print(f"\n🔬 [系统日志] 正在为用户 {current_user.username} 准备定向面试题...")
     db_profile = db.query(DBUserProfile).filter(DBUserProfile.user_id == current_user.id).first()
 
-    # 2. 提取历史弱点：查找过去得分低于 75 分的最新 3 条记录
+    # --- 1. 上下文记忆压缩 (逻辑保持不变) ---
     past_weaknesses = db.query(DBInterview).filter(
         DBInterview.user_id == current_user.id,
         DBInterview.score < 75
-    ).order_by(DBInterview.id.desc()).limit(3).all()
+    ).order_by(DBInterview.id.desc()).limit(10).all()
 
-    weakness_context = "用户目前是基础学习阶段。"
+    weakness_context = "用户目前是基础学习阶段，暂无明显的历史错误。"
+
     if past_weaknesses:
-        suggestions = [f"- 历史不足点：{w.improvement_suggestion}" for w in past_weaknesses]
-        weakness_context = "用户在之前的面试中暴露了以下弱点：\n" + "\n".join(suggestions)
+        if len(past_weaknesses) <= 3:
+            suggestions = [f"- {w.improvement_suggestion}" for w in past_weaknesses]
+            weakness_context = "用户的历史弱点如下：\n" + "\n".join(suggestions)
+        else:
+            print(f"🗜️ [上下文管理] 触发 LLM 记忆压缩机制...")
+            raw_text = "\n".join([w.improvement_suggestion for w in past_weaknesses])
+            compress_instruction = "你是一个记忆压缩引擎。请精准提取出核心的知识盲区，总结成一段100字以内的精简画像。"
+            try:
+                compress_response = client.chat.completions.create(
+                    model="glm-4-flash",
+                    messages=[
+                        {"role": "system", "content": compress_instruction},
+                        {"role": "user", "content": raw_text}
+                    ],
+                    temperature=0.3
+                )
+                weakness_context = compress_response.choices[0].message.content.strip()
+            except Exception:
+                weakness_context = "\n".join([w.improvement_suggestion for w in past_weaknesses[:3]])
 
-    # 3. 构造高级 Prompt
+    # --- 2. AI 出题 ---
     system_instruction = (
-        f"你是一位严厉但专业的{target_role}主考官。你的目标是通过提问，帮助候选人攻克他们的知识盲区。\n"
-        "请参考用户的历史表现，出一道能直接击中其弱点的深度面试题。\n"
+        f"你是一位严厉且专业的{target_role}主考官。请参考用户的【历史弱点报告】，出一道能击中其弱点的深度面试题。\n"
         "必须返回严格的 JSON 格式，不得包含 Markdown 标签（如 ```json）。"
     )
 
@@ -962,7 +1161,7 @@ async def generate_targeted_question(
             model="glm-4-flash",
             messages=[
                 {"role": "system", "content": system_instruction},
-                {"role": "user", "content": f"请结合我的情况出题：{json.dumps(user_context, ensure_ascii=False)}"}
+                {"role": "user", "content": f"请出题：{json.dumps(user_context, ensure_ascii=False)}"}
             ],
             temperature=0.8
         )
@@ -971,19 +1170,36 @@ async def generate_targeted_question(
         cleaned_json = ai_raw.replace("```json", "").replace("```", "").strip()
         res_dict = json.loads(cleaned_json)
 
-        return TargetedInterviewQuestion(**res_dict)
+        # 构建题目 Pydantic 对象
+        question_obj = TargetedInterviewQuestion(**res_dict)
+
+        # --- 3. 异步触发语音合成 ---
+        # 预设文件名和路径
+        audio_filename = f"interview_{uuid.uuid4()}.mp3"
+        audio_save_path = os.path.join(AUDIO_DIR, audio_filename)
+
+        # 🔴 将耗时的语音合成任务加入后台队列，立即返回响应
+        background_tasks.add_task(task_generate_tts, question_obj.question, audio_save_path)
+
+        # 返回给前端题目数据和音频访问链接
+        return TargetedInterviewWithAudioResponse(
+            question_data=question_obj,
+            audio_url=f"/static/audio/{audio_filename}"
+        )
 
     except Exception as e:
         print(f"❌ 针对性出题失败: {str(e)}")
-        # 兜底逻辑：如果 AI 失败，返回一个通用但友好的题目
-        return TargetedInterviewQuestion(
-            role=target_role,
-            difficulty="中级",
-            question=f"请简述在{target_role}开发中，如何处理常见的并发冲突问题？",
-            focus_topic="并发处理",
-            background_context="系统暂未获取到足够弱点数据，先从基础并发知识开始练习。"
+        # 兜底逻辑
+        return TargetedInterviewWithAudioResponse(
+            question_data=TargetedInterviewQuestion(
+                role=target_role,
+                difficulty="中级",
+                question=f"请简述在{target_role}开发中，如何确保系统的可扩展性？",
+                focus_topic="架构设计",
+                background_context="系统暂忙，请先行阅读题目进行练习。"
+            ),
+            audio_url=None
         )
-
 if __name__ == "__main__":
 
     # host="0.0.0.0" 是关键，它告诉程序监听手机热点分配给你的所有 IP 地址
