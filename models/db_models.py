@@ -27,15 +27,27 @@ class DBUserProfile(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
+    # --- 基础画像信息 ---
+    name = Column(String, nullable=True)  # 刚才报错缺失的字段 1
     education_level = Column(String)
     major = Column(String)
     grade = Column(String)
     location = Column(String)
-    target_roles = Column(Text)  # 列表转为 JSON 字符串存储
-    current_skills = Column(Text)  # 列表转为 JSON 字符串存储
-    interests = Column(Text)  # 列表转为 JSON 字符串存储
-    certificates = Column(Text, nullable=True)  # 存 JSON 字符串
-    competitiveness_score = Column(Integer, default=0)  # 存分数
+
+    # --- 核心竞争力与经历 ---
+    target_roles = Column(Text)  # 存储 JSON 字符串
+    current_skills = Column(Text)  # 存储 JSON 字符串
+    interests = Column(Text)  # 存储 JSON 字符串
+    certificates = Column(Text, nullable=True)  # 存储 JSON 字符串
+
+    # --- 关键：补齐之前报错缺失的字段 ---
+    internship_experience = Column(Text, nullable=True)  # 刚才报错缺失的字段 2
+    soft_skills = Column(Text, nullable=True)  # 对应 user_model 中的软素质标签
+
+    # --- 赛题评分项 ---
+    competitiveness_score = Column(Integer, default=0)
+
+    # 关联关系
     user = relationship("DBUser", back_populates="profiles")
 
 
@@ -45,10 +57,9 @@ class DBRoadmap(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    target_role = Column(String, nullable=False)
-    overall_timeline = Column(String)
-    roadmap_detail = Column(Text, nullable=False)  # 复杂的 JSON 数组转为字符串存储
 
+    role_name = Column(String, nullable=True)
+    roadmap_json = Column(Text)  # 存储路线图的 JSON 数据
     user = relationship("DBUser", back_populates="roadmaps")
 
 

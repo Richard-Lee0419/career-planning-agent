@@ -150,6 +150,44 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
+@app.get("/api/users/me", summary="获取当前登录用户信息")
+async def read_users_me(
+    # 依赖注入：get_current_user 会自动解析 Token 并从数据库查找用户
+    current_user: DBUser = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    此接口用于前端初始化加载。
+    通过 Token 获取当前用户的账号信息，并关联查询其个人画像 (UserProfile)。
+    """
+    try:
+        # 1. 查找用户的个人画像信息
+        # 逻辑：在 DBUserProfile 表中查找 user_id 等于当前登录用户 ID 的记录
+        user_profile = db.query(DBUserProfile).filter(DBUserProfile.user_id == current_user.id).first()
+
+        # 2. 整合返回数据
+        # 我们不仅返回用户名，还返回画像中的姓名、专业等，方便前端直接渲染头像或称呼
+        return {
+            "status": "success",
+            "data": {
+                "account": {
+                    "id": current_user.id,
+                    "username": current_user.username,
+                    "created_at": getattr(current_user, 'created_at', None) # 容错处理
+                },
+                "profile": {
+                    "name": user_profile.name if user_profile else "未设置姓名",
+                    "major": user_profile.major if user_profile else None,
+                    "education_level": user_profile.education_level if user_profile else None,
+                    "has_profile": True if user_profile else False
+                }
+            }
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"获取用户信息失败: {str(e)}"
+        )
 
 # ==========================================
 # 2. 数据库查询工具（供 AI 调用 & 供 API 使用）
@@ -538,6 +576,51 @@ async def extract_profile_endpoint(
         print(f"❌ [系统日志] 简历提取失败: {e}")
         raise HTTPException(status_code=500, detail=f"解析失败: {str(e)}")
 
+
+# ==========================================
+# 个人画像管理模块 - 补充回显接口
+# ==========================================
+
+@app.get("/api/profile/me", summary="获取当前登录用户的画像回显", response_model=UserProfile)
+def get_my_profile(
+        db: Session = Depends(get_db),
+        current_user: DBUser = Depends(get_current_user)
+):
+    # 1. 查询数据库
+    db_profile = db.query(DBUserProfile).filter(DBUserProfile.user_id == current_user.id).first()
+
+    # 2. 🔴 关键修复：如果查不到数据，主动报错告知前端，而不是返回 None
+    if not db_profile:
+        # 这里返回 404，FastAPI 拦截后不会去校验 UserProfile 模型，从而避免报错
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="您尚未创建个人画像，请先前往完善资料"
+        )
+
+    # 3. 正常解析数据并返回
+    try:
+        return UserProfile(
+            name=getattr(db_profile, 'name', "未设置"),
+            education_level=db_profile.education_level,
+            major=db_profile.major,
+            grade=db_profile.grade,
+            location=db_profile.location,
+            # 增加对空字符串的判断，防止 json.loads 报错
+            current_skills=json.loads(db_profile.current_skills) if (
+                        db_profile.current_skills and db_profile.current_skills.strip()) else [],
+            certificates=json.loads(db_profile.certificates) if (
+                        db_profile.certificates and db_profile.certificates.strip()) else [],
+            internship_experience=db_profile.internship_experience,
+            soft_skills=json.loads(db_profile.soft_skills) if (
+                        db_profile.soft_skills and db_profile.soft_skills.strip()) else [],
+            target_roles=json.loads(db_profile.target_roles) if (
+                        db_profile.target_roles and db_profile.target_roles.strip()) else [],
+            interests=json.loads(db_profile.interests) if (
+                        db_profile.interests and db_profile.interests.strip()) else []
+        )
+    except Exception as e:
+        print(f"解析画像数据失败: {e}")
+        raise HTTPException(status_code=500, detail="画像数据格式解析失败")
 # ==========================================
 # 🚀 9. [全新增] 职业匹配推荐接口 (Phase 3)
 # 对应 TDD 10.2 节的要求：career_match_skill
@@ -876,6 +959,47 @@ def task_generate_tts(text: str, save_path: str):
         print(f"✅ [后台任务] 语音文件已生成: {save_path}")
     except Exception as e:
         print(f"❌ [后台任务] 语音合成失败: {str(e)}")
+
+# ==========================================
+# 历史记录查询模块 (适配 db_models.py 结构)
+# ==========================================
+
+@app.get("/api/history/roadmaps", summary="获取历史职业规划记录", tags=["历史记录回显"])
+def get_roadmap_history(
+    db: Session = Depends(get_db),
+    current_user: DBUser = Depends(get_current_user)
+):
+    """
+    获取当前用户所有的职业规划记录。
+    适配 DBRoadmap 模型：使用 user_id 过滤，解析 roadmap_json 字段。
+    """
+    # 1. 从数据库按 ID 倒序查询（最新的规划排在最前）
+    history = db.query(DBRoadmap).filter(
+        DBRoadmap.user_id == current_user.id
+    ).order_by(DBRoadmap.id.desc()).all()
+
+    results = []
+    for item in history:
+        raw_data = getattr(item, 'roadmap_json', None) or getattr(item, 'roadmap_detail', None)
+        # 2. 解析存储在 Text 字段中的 JSON 字符串
+        try:
+            data_content = json.loads(item.roadmap_json) if (item.roadmap_json and item.roadmap_json.strip()) else {}
+        except Exception:
+            data_content = {"error": "数据解析失败"}
+
+        results.append({
+            "id": item.id,
+            "role_name": getattr(item, 'role_name', "未知岗位"),
+            # 返回完整的规划 JSON 给前端渲染路径图
+            "roadmap_detail": data_content
+        })
+
+    return {
+        "status": "success",
+        "count": len(results),
+        "data": results
+    }
+
 # --- 新增：获取面试题目接口 ---
 @app.get("/api/interview/questions", response_model=GeneralInterviewResponse,
          summary="通用面试：多维度题目生成（带异步语音）")
@@ -1213,6 +1337,38 @@ async def generate_targeted_question(
             ),
             audio_url=None
         )
+
+@app.get("/api/history/interviews", summary="获取历史面试记录", tags=["历史记录回显"])
+def get_interview_history(
+    db: Session = Depends(get_db),
+    current_user: DBUser = Depends(get_current_user)
+):
+    """
+    获取当前用户所有的模拟面试复盘记录。
+    适配 DBInterview 模型：提取得分、评价、建议及参考答案。
+    """
+    history = db.query(DBInterview).filter(
+        DBInterview.user_id == current_user.id
+    ).order_by(DBInterview.id.desc()).all()
+
+    results = []
+    for item in history:
+        results.append({
+            "id": item.id,
+            "question": item.question,
+            "user_answer": item.user_answer,
+            "score": item.score,
+            "evaluation": item.evaluation, # 对应模型中的评价字段
+            "improvement_suggestion": item.improvement_suggestion, # 改进建议
+            "reference_answer": item.reference_answer # 参考答案
+        })
+
+    return {
+        "status": "success",
+        "count": len(results),
+        "data": results
+    }
+
 if __name__ == "__main__":
 
     # host="0.0.0.0" 是关键，它告诉程序监听手机热点分配给你的所有 IP 地址
