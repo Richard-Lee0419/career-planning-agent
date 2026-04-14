@@ -95,3 +95,9 @@ python -m venv .venv
 pip install fastapi uvicorn sqlalchemy
 #启动依赖
 uvicorn main:app --reload
+
+### 🚀 运维与部署更新 (v2.0)
+1. **依赖更新**：新增 `aiofiles` (静态流处理) 与 `python-multipart` (文件表单处理)。
+2. **权限要求**：服务器部署需确保 `static/audio` 具备 `777` 写入权限，以支持 TTS 语音文件落盘。
+3. **后台调度**：系统启动后将自动激活 `Asyncio-Daemon` 巡逻任务，每 24h 执行一次过期音频清理。
+4. **端口占用**：如遇端口冲突，请使用 `lsof -i:8000` 查询并结束旧进程。
