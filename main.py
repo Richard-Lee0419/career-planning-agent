@@ -812,11 +812,11 @@ class FullGapAnalysisResponse(BaseModel):
     immediate_next_steps: List[str] = Field(default=[], description="即刻行动建议")
     roadmap_preview: str = Field(..., description="简短的学习路径规划建议")
 
-@app.post("/api/agent/gap-analysis", response_model=FullGapAnalysisResponse, summary="四维能力差距分析")
-async def gap_analysis_endpoint(
-        target_role: str = Query(..., description="目标岗位"),
-        db: Session = Depends(get_db),
-        current_user: DBUser = Depends(get_current_user)
+@app.post("/api/agent/gap-analysis", summary="四维差距分析", tags=["Agent核心逻辑"])
+def gap_analysis_endpoint(
+    target_role: str = Query(..., description="目标岗位名称"),
+    db: Session = Depends(get_db),
+    current_user: DBUser = Depends(get_current_user)
 ):
     # 1. 获取用户画像
     db_profile = db.query(DBUserProfile).filter(DBUserProfile.user_id == current_user.id).first()
@@ -847,6 +847,7 @@ async def gap_analysis_endpoint(
         "}"
     )
 
+    # 1. 组装用户信息字典
     user_info = {
         "education": db_profile.education_level,
         "major": db_profile.major,
@@ -854,6 +855,7 @@ async def gap_analysis_endpoint(
         "soft_skills": db_profile.interests,
         "competitiveness": db_profile.competitiveness_score
     }
+    user_prompt = f"请对比以下信息进行打分：\n目标岗位：{target_role}\n行业标准：{job_ref}\n用户信息：{json.dumps(user_info, ensure_ascii=False)}"
     # 替换 gap_analysis_endpoint 内部的 try 块
     max_retries = 2  # 设置最大重试次数
     for attempt in range(max_retries):
@@ -862,7 +864,7 @@ async def gap_analysis_endpoint(
                 model="glm-4-flash",
                 messages=[
                     {"role": "system", "content": system_instruction},
-                    {"role": "user", "content": user_prompt}
+                    {"role": "user", "content": user_prompt}  # 🚨 现在这里有值了！
                 ],
                 temperature=0.2
             )
