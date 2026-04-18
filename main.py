@@ -89,12 +89,28 @@ async def startup_event():
     # 使用 create_task 让它在后台独立运行，不阻塞主程序
     asyncio.create_task(auto_cleanup_audio())
 
+
+# ======= 完整替换 main.py 中的 CORSMiddleware 配置 =======
 app.add_middleware(
     CORSMiddleware,
-# 开发阶段可以填 ["*"] 允许所有域名，部署上线时建议改成具体的前端地址（如 ["http://localhost:5173"]）
-    allow_origins=["*"],
+    # 明确指定允许访问后端的来源地址
+    allow_origins=[
+        # 1. 线上环境：允许部署在同一台服务器 3000 端口的前端访问
+        "http://47.111.21.230:3000",
+
+        # 2. 开发环境：允许前端同学在本地电脑调试（Next.js 默认端口）
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+
+        # 3. 兼容性：保留 Vite 等其他常用开发端口
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+    # 必须为 True 才能支持前端发送 Authorization Header 或 Cookie
     allow_credentials=True,
+    # 允许所有 HTTP 方法 (GET, POST, PUT, DELETE 等)
     allow_methods=["*"],
+    # 允许所有请求头
     allow_headers=["*"],
 )
 
