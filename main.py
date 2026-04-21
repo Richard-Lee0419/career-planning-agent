@@ -15,6 +15,7 @@ from models.user_model import UserProfile
 from pydantic import Field
 from fastapi.security import OAuth2PasswordRequestForm
 from core.database import engine, get_db
+import re  # 确保文件顶部有导入正则表达式模块
 from models.db_models import (
     Base,
     DBUser,
@@ -121,8 +122,13 @@ class ChatRequest(BaseModel):
     session_id: Optional[str] = None  # 前端传来的会话 ID，用来识别是谁在聊天
     message: str  # 用户发来的对话内容
     profile: Optional[UserProfile] = None  # 新增：允许前端在此处顺便传入用户的画像/简历数据
-
-
+    graph_data: Optional[dict] = None  # ✨ 新增这个字段，用于存放脱壳后的JSON
+# --- 2. 响应模型：核心是增加 graph_data 字段 ---
+class ChatResponse(BaseModel):
+    session_id: str
+    reply: str                       # 这里只放“洗干净”后的纯文本回复
+    graph_data: Optional[dict] = None  # ✨ 这里放剥离出来的 JSON 对象，前端直接拿这个画图
+    blocks: List[dict] = []          # 保持结构兼容
 # --- 建立简单的内存数据库来存储聊天记录 ---
 session_memory = {}
 
@@ -141,6 +147,26 @@ class UserRegister(BaseModel):
     password: str
 
 
+def extract_graph_data_logic(full_text: str):
+    """
+    专门负责把 AI 话里的 [[GRAPH_START]] 及其内容抠出来
+    """
+    pattern = r"\[\[GRAPH_START\]\]([\s\S]*?)\[\[GRAPH_END\]\]"
+    match = re.search(pattern, full_text)
+
+    if match:
+        json_str = match.group(1).strip()
+        # 得到不含标签的纯文字回复
+        clean_text = re.sub(pattern, "", full_text).strip()
+        try:
+            # 尝试将提取到的字符串转为 Python 字典
+            graph_obj = json.loads(json_str)
+            return clean_text, graph_obj
+        except Exception as e:
+            print(f"解析图谱JSON失败: {e}")
+            return clean_text, None
+
+    return full_text, None
 @app.post("/api/auth/register", summary="用户注册")
 def register(user: UserRegister, db: Session = Depends(get_db)):
     # 检查用户名是否已存在
@@ -761,10 +787,7 @@ class ResultBlock(BaseModel):
     data: Optional[dict] = None # 用于承载图谱、雷达图等复杂数据
 
 
-import re  # 确保文件顶部有导入正则表达式模块
-
-
-@app.post("/api/agent/chat", summary="职业规划 AI 多轮对话（物理切割防漏版）")
+@app.post("/api/agent/chat", response_model=ChatResponse, summary="职业规划 AI 多轮对话（终极脱壳版）")
 async def career_chat(
         request: ChatRequest,
         db: Session = Depends(get_db),
@@ -772,22 +795,22 @@ async def career_chat(
 ):
     session_id = request.session_id or str(uuid.uuid4())
 
+    # 1. 获取历史记录
     history = db.query(DBChatMessage).filter(
         DBChatMessage.user_id == current_user.id,
         DBChatMessage.session_id == session_id
     ).order_by(DBChatMessage.id.asc()).all()
 
-    # 💡 终极约束 Prompt：用最严厉的语气限制它的字段输出
+    # 2. 构造 Prompt（强化对 JSON 格式的约束）
     system_instruction = (
         "你是一个专业的职业规划专家。"
-        "如果用户要求看'职业图谱'、'晋升路径'，请在回复末尾包含特殊的 JSON 标记。格式严格如下：\n"
+        "当用户要求查看'职业图谱'或'晋升路径'时，请先进行文字回复，并在回复末尾附带 JSON 数据。"
+        "格式要求：必须包裹在 [[GRAPH_START]] 和 [[GRAPH_END]] 之间。\n"
+        "示例格式：\n"
         "[[GRAPH_START]]\n"
-        '{"levels": [{"id": "L1", "level": "P5", "title": "初级工程师", "status": "acquired", "salaryRange": "15k-20k", "coreSkills": [{"name": "React", "isMastered": true}]}]}\n'
+        '{"levels": [{"id": "L1", "level": "P5", "title": "初级工程师", "status": "acquired", "salaryRange": "15k-20k", "coreSkills": [{"name": "Python", "isMastered": true}]}]}\n'
         "[[GRAPH_END]]\n"
-        "【极其重要的强制约束 - 你必须遵守】：\n"
-        "1. coreSkills 数组内的每个对象，必须且只能包含 'name' (字符串) 和 'isMastered' (布尔值) 两个字段！绝对不能缺 isMastered！绝对不能增加 details 等其他字段！\n"
-        "2. status 只能是 'acquired', 'current', 或 'locked'。\n"
-        "3. JSON内严禁使用Markdown代码块(```json)标记，直接输出纯文本JSON。"
+        "注意：JSON 内严禁使用 Markdown 代码块 (```json) 标记，直接输出纯文本 JSON。"
     )
 
     messages = [{"role": "system", "content": system_instruction}]
@@ -796,57 +819,60 @@ async def career_chat(
     messages.append({"role": "user", "content": request.message})
 
     try:
+        # 3. 调用大模型
         response = client.chat.completions.create(
             model="glm-4-flash",
             messages=messages,
-            temperature=0.1  # 压低温度，让它变老实
+            temperature=0.1  # 压低温度，确保 JSON 输出格式极其稳定
         )
         ai_reply = response.choices[0].message.content
 
         # ==========================================
-        # 💡 核心防御：100% 稳定的 split 物理切割
+        # 💡 核心防御逻辑：物理切割 + 后端脱壳
         # ==========================================
-        blocks = []
+        final_graph_obj = None
         clean_reply = ai_reply
 
-        # 只要同时检测到头尾标签，直接切！
+        # 检测标记是否存在
         if "[[GRAPH_START]]" in ai_reply and "[[GRAPH_END]]" in ai_reply:
             try:
-                # 1. 物理切割成三截
+                # 1. 物理切割：分为文字区和 JSON 区
                 parts = ai_reply.split("[[GRAPH_START]]")
-                before_graph = parts[0]
+                before_text = parts[0]
 
-                graph_and_after = parts[1].split("[[GRAPH_END]]")
-                raw_json_content = graph_and_after[0]
-                after_graph = graph_and_after[1] if len(graph_and_after) > 1 else ""
+                inner_content = parts[1].split("[[GRAPH_END]]")
+                raw_json = inner_content[0]
+                after_text = inner_content[1] if len(inner_content) > 1 else ""
 
-                # 2. 🚀 第一时间拼装干净文本！就算下面 JSON 解析全崩了，用户看到的也是没乱码的文字！
-                clean_reply = (before_graph.strip() + "\n" + after_graph.strip()).strip()
+                # 2. 合并干净的文字回复
+                clean_reply = (before_text.strip() + "\n" + after_text.strip()).strip()
 
-                # 3. 清洗并解析 JSON
-                raw_json_content = raw_json_content.replace("```json", "").replace("```", "").strip()
-                graph_data = json.loads(raw_json_content)
+                # 3. 强力清洗 JSON 字符串并转为字典
+                # 排除 AI 可能带出的 Markdown 符号
+                clean_json_str = raw_json.replace("```json", "").replace("```", "").strip()
+                final_graph_obj = json.loads(clean_json_str)
 
-                if "levels" in graph_data:
-                    blocks.append({
-                        "type": "career_map",
-                        "data": graph_data
-                    })
-                    print(f"✅ [图谱解析] 成功提取数据，阶段数: {len(graph_data['levels'])}")
+                print(f"✅ [后端脱壳] 图谱数据解析成功")
             except Exception as e:
-                print(f"❌ [图谱解析] 发生错误: {e}")
-                # 发生异常也不怕，因为 clean_reply 已经在上面第一步被切割干净了！
+                print(f"❌ [后端脱壳] 解析 JSON 失败: {e}")
+                # 解析失败时，clean_reply 依然是切干净的文本，不会显示代码乱码
 
         # ==========================================
 
-        # 3. 持久化（存入和返回的都是被物理切掉 JSON 的纯享版文本）
+        # 4. 持久化存储（存入数据库的是干净的文本，不含 [[...]] 乱码）
         user_msg = DBChatMessage(user_id=current_user.id, session_id=session_id, role="user", content=request.message)
         ai_msg = DBChatMessage(user_id=current_user.id, session_id=session_id, role="assistant", content=clean_reply)
         db.add(user_msg)
         db.add(ai_msg)
         db.commit()
 
-        return {"session_id": session_id, "reply": clean_reply, "blocks": blocks}
+        # 5. 返回给前端
+        return ChatResponse(
+            session_id=session_id,
+            reply=clean_reply,  # ✨ 前端对话框只显示这个，非常干净
+            graph_data=final_graph_obj,  # ✨ 前端图谱组件直接用这个对象
+            blocks=[]
+        )
 
     except Exception as e:
         db.rollback()
