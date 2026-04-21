@@ -740,8 +740,30 @@ class CareerRecommendationItem(BaseModel):
 class CareerMatchResponse(BaseModel):
     recommendations: List[CareerRecommendationItem]
 
+class GraphNode(BaseModel):
+    id: str
+    label: str
+    type: str = "skill" # skill, role, requirement
 
-@app.post("/api/agent/chat", summary="职业规划 AI 多轮对话（持久化版）")
+class GraphLink(BaseModel):
+    source: str
+    target: str
+
+class CareerGraphData(BaseModel):
+    nodes: List[GraphNode]
+    links: List[GraphLink]
+
+# --- 新增：通用的 ResultBlock 模型 ---
+class ResultBlock(BaseModel):
+    type: str # 'text' | 'career_map' | 'gap_analysis' | 'action_plan'
+    content: Optional[str] = None
+    data: Optional[dict] = None # 用于承载图谱、雷达图等复杂数据
+
+
+import re  # 确保文件顶部有导入正则表达式模块
+
+
+@app.post("/api/agent/chat", summary="职业规划 AI 多轮对话（持久化版+图谱支持）")
 async def career_chat(
         request: ChatRequest,
         db: Session = Depends(get_db),
@@ -749,6 +771,7 @@ async def career_chat(
 ):
     """
     通过 user_id 和 session_id 维护用户的多轮对话记忆，并实时保存。
+    已新增：无侵入式支持动态解析大模型返回的职业图谱数据并下发前端。
     """
     session_id = request.session_id or str(uuid.uuid4())
 
@@ -758,8 +781,19 @@ async def career_chat(
         DBChatMessage.session_id == session_id
     ).order_by(DBChatMessage.id.asc()).all()
 
+    # 💡 修改点 1：扩展系统 Prompt，教会 AI 如何按规范输出图谱数据格式
+    system_instruction = (
+        "你是一个专业的职业规划专家。"
+        "如果用户要求看'职业图谱'、'晋升路径图'或'知识体系'，请在回复中包含一个特殊的 JSON 标记。格式严格如下：\n"
+        "[[GRAPH_START]]\n"
+        '{"nodes": [{"id": "n1", "label": "前端基础", "type": "skill"}], "links": [{"source": "n1", "target": "n2"}]}\n'
+        "[[GRAPH_END]]\n"
+        "正常的对话、解释文字请放在标记之外。"
+    )
+
     # 构造给大模型的消息格式
-    messages = [{"role": "system", "content": "你是一个专业的职业规划专家..."}]
+    messages = [{"role": "system", "content": system_instruction}]
+
     for h in history:
         messages.append({"role": h.role, "content": h.content})
 
@@ -774,15 +808,45 @@ async def career_chat(
         )
         ai_reply = response.choices[0].message.content
 
-        # 3. 🌟 持久化：将本次对话存入数据库
+        # ==========================================
+        # 💡 修改点 2：新增无侵入式模块，解析图谱数据并清洗文本
+        # ==========================================
+        blocks = []
+        clean_reply = ai_reply
+
+        if "[[GRAPH_START]]" in ai_reply:
+            # 提取两个标签中间的 JSON 字符串 (包含换行符的情况)
+            graph_match = re.search(r"\[\[GRAPH_START\]\](.*?)\[\[GRAPH_END\]\]", ai_reply, re.S)
+            if graph_match:
+                try:
+                    graph_json_str = graph_match.group(1).strip()
+                    graph_data = json.loads(graph_json_str)  # 解析出字典
+
+                    # 组装为前端期望的 ResultBlock 格式
+                    blocks.append({
+                        "type": "career_map",
+                        "data": graph_data
+                    })
+                    # 将含有 JSON 的乱码段从给用户的文本回复中剔除掉
+                    clean_reply = re.sub(r"\[\[GRAPH_START\]\].*?\[\[GRAPH_END\]\]", "", ai_reply, flags=re.S).strip()
+                except Exception as parse_e:
+                    print(f"⚠️ 图谱 JSON 解析失败: {parse_e}")
+        # ==========================================
+
+        # 3. 🌟 持久化：将本次对话存入数据库 (注意：这里存入的是清洗后的 clean_reply)
         user_msg = DBChatMessage(user_id=current_user.id, session_id=session_id, role="user", content=request.message)
-        ai_msg = DBChatMessage(user_id=current_user.id, session_id=session_id, role="assistant", content=ai_reply)
+        ai_msg = DBChatMessage(user_id=current_user.id, session_id=session_id, role="assistant", content=clean_reply)
 
         db.add(user_msg)
         db.add(ai_msg)
         db.commit()
 
-        return {"session_id": session_id, "reply": ai_reply}
+        # 💡 修改点 3：返回值追加 blocks 数组，完美对接前端 ResultBlock 机制
+        return {
+            "session_id": session_id,
+            "reply": clean_reply,
+            "blocks": blocks
+        }
 
     except Exception as e:
         db.rollback()
