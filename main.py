@@ -764,7 +764,7 @@ class ResultBlock(BaseModel):
 import re  # 确保文件顶部有导入正则表达式模块
 
 
-@app.post("/api/agent/chat", summary="职业规划 AI 多轮对话（全能增强版）")
+@app.post("/api/agent/chat", summary="职业规划 AI 多轮对话（物理切割防漏版）")
 async def career_chat(
         request: ChatRequest,
         db: Session = Depends(get_db),
@@ -772,20 +772,22 @@ async def career_chat(
 ):
     session_id = request.session_id or str(uuid.uuid4())
 
-    # 1. 从数据库加载历史
     history = db.query(DBChatMessage).filter(
         DBChatMessage.user_id == current_user.id,
         DBChatMessage.session_id == session_id
     ).order_by(DBChatMessage.id.asc()).all()
 
-    # 💡 强化 Prompt：明确要求不要包含 Markdown 代码块，且必须输出 JSON
+    # 💡 终极约束 Prompt：用最严厉的语气限制它的字段输出
     system_instruction = (
         "你是一个专业的职业规划专家。"
         "如果用户要求看'职业图谱'、'晋升路径'，请在回复末尾包含特殊的 JSON 标记。格式严格如下：\n"
         "[[GRAPH_START]]\n"
         '{"levels": [{"id": "L1", "level": "P5", "title": "初级工程师", "status": "acquired", "salaryRange": "15k-20k", "coreSkills": [{"name": "React", "isMastered": true}]}]}\n'
         "[[GRAPH_END]]\n"
-        "注意：status只能是 'acquired', 'current', 或 'locked'。正常的对话文字请放在标记之外，JSON内严禁使用Markdown代码块标记。"
+        "【极其重要的强制约束 - 你必须遵守】：\n"
+        "1. coreSkills 数组内的每个对象，必须且只能包含 'name' (字符串) 和 'isMastered' (布尔值) 两个字段！绝对不能缺 isMastered！绝对不能增加 details 等其他字段！\n"
+        "2. status 只能是 'acquired', 'current', 或 'locked'。\n"
+        "3. JSON内严禁使用Markdown代码块(```json)标记，直接输出纯文本JSON。"
     )
 
     messages = [{"role": "system", "content": system_instruction}]
@@ -797,46 +799,47 @@ async def career_chat(
         response = client.chat.completions.create(
             model="glm-4-flash",
             messages=messages,
-            temperature=0.2  # 降低随机性以保证格式稳定
+            temperature=0.1  # 压低温度，让它变老实
         )
         ai_reply = response.choices[0].message.content
 
         # ==========================================
-        # 💡 核心修复：更健壮的 JSON 提取逻辑
+        # 💡 核心防御：100% 稳定的 split 物理切割
         # ==========================================
         blocks = []
         clean_reply = ai_reply
 
-        if "[[GRAPH_START]]" in ai_reply:
-            graph_match = re.search(r"\[\[GRAPH_START\]\](.*?)\[\[GRAPH_END\]\]", ai_reply, re.S)
-            if graph_match:
-                try:
-                    raw_content = graph_match.group(1).strip()
-                    raw_content = re.sub(r"```json|```", "", raw_content).strip()
+        # 只要同时检测到头尾标签，直接切！
+        if "[[GRAPH_START]]" in ai_reply and "[[GRAPH_END]]" in ai_reply:
+            try:
+                # 1. 物理切割成三截
+                parts = ai_reply.split("[[GRAPH_START]]")
+                before_graph = parts[0]
 
-                    # 尝试修复 AI 可能生成的截断 JSON (从你的截图中看，AI 生成的 JSON 有语法错误，多了一些逗号和方括号)
-                    # 尽管如此，我们先确保校验逻辑正确
-                    graph_data = json.loads(raw_content)
+                graph_and_after = parts[1].split("[[GRAPH_END]]")
+                raw_json_content = graph_and_after[0]
+                after_graph = graph_and_after[1] if len(graph_and_after) > 1 else ""
 
-                    # 🚀 核心修复：将校验条件改为 "levels"，对齐我们最新的 Prompt
-                    if "levels" in graph_data:
-                        blocks.append({
-                            "type": "career_map",
-                            "data": graph_data
-                        })
-                        # 清洗掉文本回复中的标记 (无论 JSON 是否完美，只要解析出 levels，就把这段代码块从聊天流中抹去)
-                        clean_reply = re.sub(r"\[\[GRAPH_START\]\].*?\[\[GRAPH_END\]\]", "", ai_reply,
-                                             flags=re.S).strip()
-                        print(f"✅ [图谱解析] 成功提取图谱数据，阶段数: {len(graph_data['levels'])}")
-                    else:
-                        print(f"⚠️ [图谱解析] JSON 中缺少 'levels' 字段")
+                # 2. 🚀 第一时间拼装干净文本！就算下面 JSON 解析全崩了，用户看到的也是没乱码的文字！
+                clean_reply = (before_graph.strip() + "\n" + after_graph.strip()).strip()
 
-                except Exception as parse_e:
-                    print(f"❌ [图谱解析] 解析失败: {parse_e}")
-                    # 💡 容错防御：即使 JSON 解析失败（比如大模型截断了），我们也要把这段难看的代码从用户的聊天气泡里删掉！
-                    clean_reply = re.sub(r"\[\[GRAPH_START\]\].*?\[\[GRAPH_END\]\]", "", ai_reply, flags=re.S).strip()
+                # 3. 清洗并解析 JSON
+                raw_json_content = raw_json_content.replace("```json", "").replace("```", "").strip()
+                graph_data = json.loads(raw_json_content)
 
-        # 3. 持久化
+                if "levels" in graph_data:
+                    blocks.append({
+                        "type": "career_map",
+                        "data": graph_data
+                    })
+                    print(f"✅ [图谱解析] 成功提取数据，阶段数: {len(graph_data['levels'])}")
+            except Exception as e:
+                print(f"❌ [图谱解析] 发生错误: {e}")
+                # 发生异常也不怕，因为 clean_reply 已经在上面第一步被切割干净了！
+
+        # ==========================================
+
+        # 3. 持久化（存入和返回的都是被物理切掉 JSON 的纯享版文本）
         user_msg = DBChatMessage(user_id=current_user.id, session_id=session_id, role="user", content=request.message)
         ai_msg = DBChatMessage(user_id=current_user.id, session_id=session_id, role="assistant", content=clean_reply)
         db.add(user_msg)
