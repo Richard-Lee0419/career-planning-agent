@@ -11,3 +11,4 @@ data/*.xls
 data/*.xlsx
 # 忽略所有 SQLite 数据库文件
 *.db
+data/*.db
