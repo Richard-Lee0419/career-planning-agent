@@ -812,23 +812,29 @@ async def career_chat(
             if graph_match:
                 try:
                     raw_content = graph_match.group(1).strip()
-                    # 💡 关键：移除可能被 AI 误加的 Markdown 标记
                     raw_content = re.sub(r"```json|```", "", raw_content).strip()
 
+                    # 尝试修复 AI 可能生成的截断 JSON (从你的截图中看，AI 生成的 JSON 有语法错误，多了一些逗号和方括号)
+                    # 尽管如此，我们先确保校验逻辑正确
                     graph_data = json.loads(raw_content)
 
-                    # 验证必要字段，防止前端渲染崩溃
-                    if "nodes" in graph_data and "links" in graph_data:
+                    # 🚀 核心修复：将校验条件改为 "levels"，对齐我们最新的 Prompt
+                    if "levels" in graph_data:
                         blocks.append({
                             "type": "career_map",
                             "data": graph_data
                         })
-                        # 清洗掉文本回复中的标记
+                        # 清洗掉文本回复中的标记 (无论 JSON 是否完美，只要解析出 levels，就把这段代码块从聊天流中抹去)
                         clean_reply = re.sub(r"\[\[GRAPH_START\]\].*?\[\[GRAPH_END\]\]", "", ai_reply,
                                              flags=re.S).strip()
-                        print(f"✅ [图谱解析] 成功提取图谱数据，节点数: {len(graph_data['nodes'])}")
+                        print(f"✅ [图谱解析] 成功提取图谱数据，阶段数: {len(graph_data['levels'])}")
+                    else:
+                        print(f"⚠️ [图谱解析] JSON 中缺少 'levels' 字段")
+
                 except Exception as parse_e:
-                    print(f"❌ [图谱解析] 失败: {parse_e}，原始片段: {raw_content[:100]}...")
+                    print(f"❌ [图谱解析] 解析失败: {parse_e}")
+                    # 💡 容错防御：即使 JSON 解析失败（比如大模型截断了），我们也要把这段难看的代码从用户的聊天气泡里删掉！
+                    clean_reply = re.sub(r"\[\[GRAPH_START\]\].*?\[\[GRAPH_END\]\]", "", ai_reply, flags=re.S).strip()
 
         # 3. 持久化
         user_msg = DBChatMessage(user_id=current_user.id, session_id=session_id, role="user", content=request.message)
