@@ -780,12 +780,12 @@ async def career_chat(
 
     # 💡 强化 Prompt：明确要求不要包含 Markdown 代码块，且必须输出 JSON
     system_instruction = (
-        "你是一个专业的职业规划专家。当用户要求查看'职业图谱'或'知识体系'时，"
-        "你必须在回复末尾添加图谱数据。格式必须极其严格，如下所示：\n"
+        "你是一个专业的职业规划专家。"
+        "如果用户要求看'职业图谱'、'晋升路径'，请在回复末尾包含特殊的 JSON 标记。格式严格如下：\n"
         "[[GRAPH_START]]\n"
-        '{"nodes": [{"id": "n1", "label": "基础", "type": "skill"}], "links": [{"source": "n1", "target": "n2"}]}\n'
+        '{"levels": [{"id": "L1", "level": "P5", "title": "初级工程师", "status": "acquired", "salaryRange": "15k-20k", "coreSkills": [{"name": "React", "isMastered": true}]}]}\n'
         "[[GRAPH_END]]\n"
-        "注意：JSON 内部严禁使用 ```json 等 Markdown 标记，直接写原始 JSON 字符串。"
+        "注意：status只能是 'acquired', 'current', 或 'locked'。正常的对话文字请放在标记之外，JSON内严禁使用Markdown代码块标记。"
     )
 
     messages = [{"role": "system", "content": system_instruction}]
