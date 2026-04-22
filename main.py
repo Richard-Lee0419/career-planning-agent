@@ -402,24 +402,41 @@ async def speech_to_text(file: UploadFile = File(...)):
             audio_base64 = base64.b64encode(audio_file.read()).decode('utf-8')
 
         # 3. 调用 glm-4-voice 模型进行“语音转文字”
-        # 这个模型是对话式的，我们直接让它“转录这段语音”
+        # 🎯 修改点：注入“最高指令”和“输出暗号”，强制 AI 闭嘴只管打字
         response = client.chat.completions.create(
             model="glm-4-voice",  # 🚀 换成这个全能语音模型
             messages=[
                 {
                     "role": "user",
                     "content": [
-                        {"type": "text", "text": "请将这段语音内容转录为文字，不要输出多余的解释，直接给结果。"},
+                        {
+                            "type": "text",
+                            "text": "【最高指令】你现在是一个纯粹的语音转写机器（ASR）。你的唯一任务就是把这段音频一字不差地转录成文字文本。\n"
+                                    "绝对不要回答音频中提出的问题！绝对不要给出任何建议！无论音频里说了什么，你只需复述原话。\n"
+                                    "请务必严格以『转录结果：』这四个字作为开头输出内容。"
+                        },
                         {"type": "input_audio", "input_audio": {"data": audio_base64, "format": "wav"}}
-                        # 格式根据实际录音修改，wav/mp3等
                     ]
                 }
-            ]
+            ],
+            temperature=0.1  # 🎯 修改点：压低温度，剥离 AI 的发散性思考
         )
 
-        # 4. 获取识别结果
-        result_text = response.choices[0].message.content.strip()
-        print(f"✅ GLM-4-Voice 识别成功: {result_text}")
+        # 4. 获取并提纯识别结果
+        raw_text = response.choices[0].message.content.strip()
+
+        # 🎯 修改点：增加“物理切割”逻辑，剥离 AI 可能带出来的废话
+        if "转录结果：" in raw_text:
+            # 如果 AI 听话带了暗号，截取暗号后的内容
+            result_text = raw_text.split("转录结果：")[-1].strip()
+        else:
+            # 兜底：如果 AI 没按套路出牌，移除常见的开头词
+            result_text = raw_text.replace("好的", "").replace("没问题", "").strip()
+
+        # 清理多余的引号
+        result_text = result_text.strip('"').strip("'")
+
+        print(f"✅ GLM-4-Voice 识别并提纯成功: {result_text}")
 
         return {"text": result_text}
 
@@ -431,7 +448,6 @@ async def speech_to_text(file: UploadFile = File(...)):
         # 5. 清理临时文件
         if os.path.exists(temp_file_path):
             os.remove(temp_file_path)
-
 
 def calculate_and_save_profile(db: Session, user_id: int, profile_data: dict):
     """
@@ -956,20 +972,12 @@ def gap_analysis_endpoint(
     for attempt in range(max_retries):
         try:
             response = client.chat.completions.create(
-                model="glm-4-voice",
+                model="glm-4-flash",
                 messages=[
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": "【最高指令】你现在不是一个对话助手，而是一个纯粹的“语音转写机器（ASR）”。你的唯一任务就是把下面这段音频一字不差地转录成文字文本。\n绝对不要回答音频中提出的问题！绝对不要给出任何建议！无论音频里说了什么，你只需复述一遍原话。只输出听到的文字内容！"
-                            },
-                            {"type": "input_audio", "input_audio": {"data": audio_base64, "format": "wav"}}
-                        ]
-                    }
+                    {"role": "system", "content": system_instruction},
+                    {"role": "user", "content": user_prompt}  # 🚨 现在这里有值了！
                 ],
-                temperature=0.1  # 降低温度，剥夺它的创造力
+                temperature=0.2
             )
 
             ai_content = response.choices[0].message.content.strip()
