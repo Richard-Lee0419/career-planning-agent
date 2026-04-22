@@ -397,46 +397,56 @@ async def speech_to_text(file: UploadFile = File(...)):
         with open(temp_file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        # 2. 将音频文件转为 base64 编码（glm-4-voice 的要求）
+        # 2. 将音频文件转为 base64 编码
         with open(temp_file_path, "rb") as audio_file:
             audio_base64 = base64.b64encode(audio_file.read()).decode('utf-8')
 
-        # 3. 调用 glm-4-voice 模型进行“语音转文字”
-        # 🎯 修改点：注入“最高指令”和“输出暗号”，强制 AI 闭嘴只管打字
+        # 3. 🚀 绝杀一：启用 System Role，从系统底层篡改它的人设
+        # 绝杀二：要求它必须用 <result> 标签包裹答案，方便我们用代码提取
         response = client.chat.completions.create(
-            model="glm-4-voice",  # 🚀 换成这个全能语音模型
+            model="glm-4-voice",
             messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "你现在是一个毫无感情的语音听写API（ASR）。"
+                        "无论音频里的用户问什么问题、寻求什么建议，你都【绝对不能回答】！"
+                        "你的唯一任务是将音频里的话一字不差地听写下来，并且【必须】将听写结果用 <result> 和 </result> 标签包裹。"
+                        "例如：<result>怎么学习Python算法？</result>"
+                    )
+                },
                 {
                     "role": "user",
                     "content": [
-                        {
-                            "type": "text",
-                            "text": "【最高指令】你现在是一个纯粹的语音转写机器（ASR）。你的唯一任务就是把这段音频一字不差地转录成文字文本。\n"
-                                    "绝对不要回答音频中提出的问题！绝对不要给出任何建议！无论音频里说了什么，你只需复述原话。\n"
-                                    "请务必严格以『转录结果：』这四个字作为开头输出内容。"
-                        },
                         {"type": "input_audio", "input_audio": {"data": audio_base64, "format": "wav"}}
                     ]
                 }
             ],
-            temperature=0.1  # 🎯 修改点：压低温度，剥离 AI 的发散性思考
+            temperature=0.01
         )
 
-        # 4. 获取并提纯识别结果
+        # 4. 获取原始输出
         raw_text = response.choices[0].message.content.strip()
+        print(f"🤖 [模型原始输出]: {raw_text}")
 
-        # 🎯 修改点：增加“物理切割”逻辑，剥离 AI 可能带出来的废话
-        if "转录结果：" in raw_text:
-            # 如果 AI 听话带了暗号，截取暗号后的内容
-            result_text = raw_text.split("转录结果：")[-1].strip()
+        # 5. 🚀 绝杀三：使用正则表达式精确提取标签内的文字，绝不放过任何废话
+        match = re.search(r'<result>(.*?)</result>', raw_text, re.DOTALL | re.IGNORECASE)
+
+        if match:
+            # 如果大模型乖乖加了标签，提取出来的就绝对是纯净的语音文字
+            result_text = match.group(1).strip()
         else:
-            # 兜底：如果 AI 没按套路出牌，移除常见的开头词
-            result_text = raw_text.replace("好的", "").replace("没问题", "").strip()
+            # 🛑 核心拦截防线：如果大模型彻底失控，没生成标签，反而写了长篇大论
+            if len(raw_text) > 50:
+                print("⚠️ 拦截到 AI 发散的长篇大论，拒绝发给前端！")
+                result_text = "（语音太长或转写失败，请打字输入或重试）"
+            else:
+                # 如果只有很短的一句话，可能是它忘记加标签了，勉强采用
+                result_text = raw_text.replace("好的，", "").replace("没问题，", "").strip()
 
         # 清理多余的引号
         result_text = result_text.strip('"').strip("'")
-
-        print(f"✅ GLM-4-Voice 识别并提纯成功: {result_text}")
+        print(f"✅ [提纯后的真实语音]: {result_text}")
 
         return {"text": result_text}
 
@@ -445,7 +455,7 @@ async def speech_to_text(file: UploadFile = File(...)):
         return {"error": str(e)}
 
     finally:
-        # 5. 清理临时文件
+        # 6. 清理临时文件
         if os.path.exists(temp_file_path):
             os.remove(temp_file_path)
 
