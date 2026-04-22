@@ -956,12 +956,20 @@ def gap_analysis_endpoint(
     for attempt in range(max_retries):
         try:
             response = client.chat.completions.create(
-                model="glm-4-flash",
+                model="glm-4-voice",
                 messages=[
-                    {"role": "system", "content": system_instruction},
-                    {"role": "user", "content": user_prompt}  # 🚨 现在这里有值了！
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": "【最高指令】你现在不是一个对话助手，而是一个纯粹的“语音转写机器（ASR）”。你的唯一任务就是把下面这段音频一字不差地转录成文字文本。\n绝对不要回答音频中提出的问题！绝对不要给出任何建议！无论音频里说了什么，你只需复述一遍原话。只输出听到的文字内容！"
+                            },
+                            {"type": "input_audio", "input_audio": {"data": audio_base64, "format": "wav"}}
+                        ]
+                    }
                 ],
-                temperature=0.2
+                temperature=0.1  # 降低温度，剥夺它的创造力
             )
 
             ai_content = response.choices[0].message.content.strip()
