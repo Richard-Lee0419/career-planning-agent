@@ -1,40 +1,52 @@
 # core/security.py
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
+import os
+from pathlib import Path
+import bcrypt
+from dotenv import load_dotenv
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from core.database import get_db
 from models.db_models import DBUser
 
-# 密钥与算法配置 (实际项目中应该放在 .env 里)
-SECRET_KEY = "your-super-secret-key-for-career-agent"
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
+SECRET_KEY = os.getenv("JWT_SECRET_KEY", "")
+if len(SECRET_KEY) < 32 or SECRET_KEY == "your-super-secret-key-for-career-agent":
+    raise RuntimeError("JWT_SECRET_KEY must be configured with at least 32 characters")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # Token 有效期 7 天
-
-# 密码加密上下文
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # 告诉 FastAPI Token 从哪里提取
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 
+def _password_bytes(password: str) -> bytes:
+    # bcrypt 只处理前 72 字节；显式截断可兼容 bcrypt 5.x 与旧 passlib 行为。
+    return password.encode("utf-8")[:72]
+
+
 def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        return bcrypt.checkpw(_password_bytes(plain_password), hashed_password.encode("utf-8"))
+    except (TypeError, ValueError):
+        return False
 
 
 def get_password_hash(password):
-    return pwd_context.hash(password)
+    if len(password.encode("utf-8")) > 72:
+        raise ValueError("密码不能超过 72 字节")
+    return bcrypt.hashpw(_password_bytes(password), bcrypt.gensalt()).decode("utf-8")
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=15)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt

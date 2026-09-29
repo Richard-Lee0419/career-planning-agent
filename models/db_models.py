@@ -1,5 +1,5 @@
 # models/db_models.py
-from sqlalchemy import Column, Integer, String, Text, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, ForeignKey, Index
 from sqlalchemy.orm import relationship
 from core.database import Base
 
@@ -43,6 +43,8 @@ class DBUserProfile(Base):
     # --- 关键：补齐之前报错缺失的字段 ---
     internship_experience = Column(Text, nullable=True)  # 刚才报错缺失的字段 2
     soft_skills = Column(Text, nullable=True)  # 对应 user_model 中的软素质标签
+    innovation_potential = Column(Text, nullable=True)
+    weekly_learning_time = Column(String, nullable=True)
 
     # --- 赛题评分项 ---
     competitiveness_score = Column(Integer, default=0)
@@ -54,18 +56,31 @@ class DBUserProfile(Base):
 # 3. 学习路径表
 class DBRoadmap(Base):
     __tablename__ = "roadmaps"
+    __table_args__ = (
+        Index("uq_roadmaps_user_request", "user_id", "request_key", unique=True),
+        Index("ix_roadmaps_user_id_id", "user_id", "id"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
     role_name = Column(String, nullable=True)
     roadmap_json = Column(Text)  # 存储路线图的 JSON 数据
+    created_at = Column(String, nullable=True)
+    profile_snapshot_json = Column(Text, nullable=True)
+    match_snapshot_json = Column(Text, nullable=True)
+    progress_json = Column(Text, nullable=True)
+    request_key = Column(String(100), nullable=True)
     user = relationship("DBUser", back_populates="roadmaps")
 
 
 # 4. 面试记录表
 class DBInterview(Base):
     __tablename__ = "interviews"
+    __table_args__ = (
+        Index("uq_interviews_user_request", "user_id", "request_key", unique=True),
+        Index("ix_interviews_user_id_id", "user_id", "id"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
@@ -76,19 +91,46 @@ class DBInterview(Base):
     evaluation = Column(Text)
     improvement_suggestion = Column(Text)
     reference_answer = Column(Text)
+    request_key = Column(String(100), nullable=True)
+    request_fingerprint = Column(String(64), nullable=True)
 
     user = relationship("DBUser", back_populates="interviews")
 # models/db_models.py 补充部分
 class DBChatMessage(Base):
     __tablename__ = "chat_messages"
+    __table_args__ = (
+        Index("ix_chat_messages_user_session_id", "user_id", "session_id", "id"),
+        Index("uq_chat_messages_user_request_role", "user_id", "session_id", "request_key", "role", unique=True),
+    )
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     session_id = Column(String, index=True)
     role = Column(String)  # "user" 或 "assistant"
     content = Column(Text)
+    graph_data = Column(Text, nullable=True)
+    request_key = Column(String(100), nullable=True)
     timestamp = Column(String) # 可以记录时间
 
     user = relationship("DBUser", back_populates="chats")
+
+
+class DBChatSession(Base):
+    __tablename__ = "chat_sessions"
+    id = Column(String, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), primary_key=True, nullable=False, index=True)
+    target_role = Column(String, nullable=True)
+    roadmap_id = Column(Integer, ForeignKey("roadmaps.id"), nullable=True)
+    created_at = Column(String, nullable=False)
+    closed_at = Column(String, nullable=True)
+
+
+class DBAudioJob(Base):
+    __tablename__ = "audio_jobs"
+    filename = Column(String, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    status = Column(String, nullable=False)
+    created_at = Column(String, nullable=False)
+    updated_at = Column(String, nullable=False)
 
 # 5. 岗位标准画像表 (Node)
 class DBJobStandardProfile(Base):

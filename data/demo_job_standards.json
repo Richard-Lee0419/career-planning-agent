@@ -1,0 +1,30 @@
+[
+  {
+    "role_name": "前端开发工程师",
+    "description": "演示用岗位标准：负责 Web 界面开发、组件维护与交互体验优化。",
+    "core_skills": ["HTML/CSS", "JavaScript", "React", "TypeScript", "Git"],
+    "soft_skills": ["团队协作", "问题分析"],
+    "certifications": []
+  },
+  {
+    "role_name": "Java 后端开发工程师",
+    "description": "演示用岗位标准：负责服务端接口、数据持久化与系统稳定性。",
+    "core_skills": ["Java", "Spring Boot", "SQL", "REST API", "Git"],
+    "soft_skills": ["团队协作", "问题分析"],
+    "certifications": []
+  },
+  {
+    "role_name": "数据分析师",
+    "description": "演示用岗位标准：负责数据清洗、指标分析和可视化表达。",
+    "core_skills": ["SQL", "Python", "数据清洗", "统计分析", "数据可视化"],
+    "soft_skills": ["沟通表达", "问题分析"],
+    "certifications": []
+  },
+  {
+    "role_name": "产品经理",
+    "description": "演示用岗位标准：负责需求分析、产品规划与跨团队协作。",
+    "core_skills": ["需求分析", "原型设计", "用户研究", "数据分析", "项目管理"],
+    "soft_skills": ["沟通表达", "团队协作"],
+    "certifications": []
+  }
+]

@@ -2,6 +2,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import NullPool
 import os
 #数据库连接引擎!!
 # 获取当前项目根目录，并定位到 data 文件夹下的数据库文件
@@ -13,7 +14,9 @@ SQLALCHEMY_DATABASE_URL = f"sqlite:///{DB_PATH}"
 
 # 创建数据库引擎 (connect_args={"check_same_thread": False} 是 SQLite 在 FastAPI 中特有的配置)
 engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
+    SQLALCHEMY_DATABASE_URL,
+    connect_args={"check_same_thread": False, "timeout": 30},
+    poolclass=NullPool,
 )
 
 # 创建会话工厂，用于每次请求时与数据库对话

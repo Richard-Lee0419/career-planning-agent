@@ -1,6 +1,16 @@
+"""检查当前环境变量中的智谱模型权限，不在源码中保存凭据。"""
+
+import os
+
+from dotenv import load_dotenv
 from zhipuai import ZhipuAI
 
-client = ZhipuAI(api_key="a6dc25c328bd4bd2989ffdbbba7e5d5a.6zfJxUlw9urOXLGg")
+load_dotenv()
+api_key = os.getenv("ZHIPUAI_API_KEY")
+if not api_key:
+    raise RuntimeError("请先在 .env 中配置 ZHIPUAI_API_KEY")
+
+client = ZhipuAI(api_key=api_key)
 
 # 获取当前 Key 权限下的模型列表
 try:

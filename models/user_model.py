@@ -1,5 +1,5 @@
 # models/user_model.py
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import List, Optional
 
 
@@ -9,6 +9,17 @@ from typing import List, Optional
 # ==========================================
 
 class UserProfile(BaseModel):
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "name": "张同学",
+            "education_level": "本科",
+            "major": "软件工程",
+            "current_skills": ["Python", "FastAPI", "SQL"],
+            "soft_skills": ["沟通协调", "快速学习"],
+            "competitiveness_score": 85,
+        }
+    })
+
     # --- 基础身份信息 ---
     name: Optional[str] = Field(None, description="用户姓名")
     education_level: Optional[str] = Field(None, description="学历（如：本科、硕士）")
@@ -27,7 +38,6 @@ class UserProfile(BaseModel):
         default=[],
         description="通用素质标签（如：沟通能力强、抗压性好、团队协作能力优秀）"
     )
-
     # 赛题要求的“创新能力”与“学习能力”评估
     innovation_potential: Optional[str] = Field(
         None,
@@ -37,6 +47,7 @@ class UserProfile(BaseModel):
     # --- 职业目标与量化评分 ---
     target_roles: List[str] = Field(default=[], description="目标岗位意向")
     interests: List[str] = Field(default=[], description="个人兴趣与职业倾向")
+    weekly_learning_time: Optional[str] = Field(None, description="每周可投入的学习时间")
 
     # 赛题要求的“竞争力评分”，由 AI 根据简历背景自动算出
     competitiveness_score: int = Field(
@@ -45,16 +56,3 @@ class UserProfile(BaseModel):
         le=100,
         description="综合竞争力评分 (0-100)"
     )
-
-    class Config:
-        # 允许代码中使用驼峰命名或增加示例数据
-        json_schema_extra = {
-            "example": {
-                "name": "张同学",
-                "education_level": "本科",
-                "major": "软件工程",
-                "current_skills": ["Python", "FastAPI", "SQL"],
-                "soft_skills": ["沟通协调", "快速学习"],
-                "competitiveness_score": 85
-            }
-        }
