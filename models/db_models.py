@@ -143,6 +143,15 @@ class DBJobStandardProfile(Base):
     certifications = Column(Text)    # 常见证书要求 (JSON字符串)
     description = Column(Text)       # 岗位描述
 
+
+class DBJobStandardMetadata(Base):
+    """Source/version records for standards explicitly imported by this project."""
+
+    __tablename__ = "job_standard_metadata"
+
+    standard_id = Column(Integer, ForeignKey("job_standard_profiles.id"), primary_key=True)
+    metadata_json = Column(Text, nullable=False)
+
 # 6. 岗位关系图谱表 (Edge)
 class DBJobRelation(Base):
     __tablename__ = "job_relations"

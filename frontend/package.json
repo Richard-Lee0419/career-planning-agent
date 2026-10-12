@@ -17,10 +17,10 @@
     "@ant-design/icons": "^5.3.7",
     "antd": "^5.20.6",
     "axios": "^1.7.7",
-    "echarts": "^5.5.1",
+    "echarts": "^6.1.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.26.2",
+    "react-router-dom": "^7.18.4",
     "zustand": "^4.5.5"
   },
   "devDependencies": {
@@ -28,11 +28,12 @@
     "@types/node": "^25.6.0",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
-    "@vitejs/plugin-react": "^4.3.1",
+    "@vitejs/plugin-react": "^4.7.0",
     "eslint": "^10.11.0",
     "eslint-plugin-react-hooks": "^7.1.1",
+    "playwright": "^1.64.0",
     "typescript": "^5.5.4",
     "typescript-eslint": "^8.71.0",
-    "vite": "^5.4.6"
+    "vite": "^6.4.4"
   }
 }

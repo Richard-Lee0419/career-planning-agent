@@ -24,6 +24,7 @@ import type { InterviewHistoryItem, JobStatsItem, RoadmapHistoryItem, RoleMatch 
 import { getErrorMessage } from '../api/client';
 import { ChartCanvas } from '../components/ChartCanvas';
 import { GrowthJourney } from '../components/GrowthJourney';
+import { StandardSourceNote } from '../components/StandardSourceNote';
 import { useProfile } from '../hooks/useProfile';
 import { compactNumber } from '../utils/format';
 import {
@@ -31,6 +32,7 @@ import {
   getPrimaryTargetRole,
   getProfileGaps,
   getProfileStrengths,
+  getTargetDomain,
   hasCareerProfile,
   roleNamesMatch
 } from '../utils/careerPlan';
@@ -78,6 +80,7 @@ export default function Dashboard() {
   const primaryRole = getPrimaryTargetRole(profile);
   const recommendations = useMemo(() => getCareerRecommendations(profile, roleMatches), [roleMatches, profile]);
   const primaryMatch = roleMatches.find((item) => primaryRole && roleNamesMatch(item.role_name, primaryRole));
+  const primaryDomain = getTargetDomain(profile, roleMatches.map((item) => ({ role_name: item.role_name, domain: item.domain || 'technology' })));
   const displayMatch = primaryRole ? primaryMatch?.score : recommendations[0]?.match;
   const strengths = useMemo(() => getProfileStrengths(profile), [profile]);
   const gaps = useMemo(() => getProfileGaps(profile), [profile]);
@@ -227,7 +230,7 @@ export default function Dashboard() {
 
         <div className="story-hero-facts" aria-label="当前成长概况">
           <div><span>{primaryRole ? '当前目标' : '推荐探索方向'}</span><strong>{primaryRole || recommendations[0]?.title || '待选择'}</strong></div>
-          <div><span>综合匹配度</span><strong>{displayMatch == null ? '证据待补充' : `${displayMatch}%`}</strong></div>
+          <div><span>岗位标准覆盖参考</span><strong>{displayMatch == null ? '证据待补充' : `${displayMatch}%`}</strong></div>
           <div><span>下一步</span><strong>{currentRoadmap ? '继续已保存路径' : hasProfile ? '选择推荐方向' : '完成职业测评'}</strong></div>
         </div>
       </section>
@@ -256,7 +259,7 @@ export default function Dashboard() {
         <Col xs={24} md={12} xl={6}>
           <Card className="metric-card" variant="borderless">
             <Statistic
-              title="综合匹配度"
+              title="目标岗位标准覆盖参考"
               value={displayMatch ?? '待补充'}
               suffix={displayMatch === null || displayMatch === undefined ? undefined : '%'}
               prefix={<TrophyOutlined />}
@@ -266,6 +269,7 @@ export default function Dashboard() {
               showInfo={false}
               strokeColor={{ '0%': '#5eead4', '100%': '#2563eb' }}
             />}
+            <Typography.Text type="secondary">依据已填写能力，不代表录用概率或跨领域适合度。</Typography.Text>
           </Card>
         </Col>
         <Col xs={24} md={12} xl={6}>
@@ -308,6 +312,7 @@ export default function Dashboard() {
             <Button icon={<ProfileOutlined />} onClick={() => navigate('/profile')}>
               完善个人画像资料
             </Button>
+            {primaryMatch && <StandardSourceNote source={primaryMatch.standard_source} />}
           </Space>
         </Card>
 
@@ -315,7 +320,7 @@ export default function Dashboard() {
           title={
             <Space>
               <CompassOutlined />
-              <span>我适合什么：推荐职业方向</span>
+              <span>同领域岗位与准备方向</span>
             </Space>
           }
           variant="borderless"
@@ -328,15 +333,16 @@ export default function Dashboard() {
                   <Typography.Text strong>{career.title}</Typography.Text>
                   <span>{career.subtitle}</span>
                 </div>
-                <Progress percent={career.match} showInfo={false} strokeColor={{ '0%': '#5eead4', '100%': '#2563eb' }} />
+                {career.match !== null && <Progress percent={career.match} showInfo={false} strokeColor={{ '0%': '#5eead4', '100%': '#2563eb' }} />}
                 <Space wrap>
-                  <Tag color="blue">{career.match}% 匹配</Tag>
+                  <Tag color={career.match === null ? 'gold' : 'blue'}>{career.match === null ? '信息不足，暂不评分' : `${career.match}% 标准覆盖参考`}</Tag>
                   <Button type="link" onClick={() => navigate(`/roadmap?role=${encodeURIComponent(career.title)}`)}>
                     生成路径
                   </Button>
                 </Space>
               </div>
             ))}
+            {!recommendations.length && <Empty description="先明确目录内目标，或到探索页选择一个就业领域；暂不展示全领域排序。" />}
           </div>
           <div className="section-next-action">
             <Button type="primary" icon={<CompassOutlined />} onClick={() => navigate('/recommendations')}>
@@ -382,8 +388,11 @@ export default function Dashboard() {
 
       <Row gutter={[18, 18]}>
         <Col xs={24} xl={10}>
-          <Card title="岗位市场分布" variant="borderless" className="dashboard-panel chart-panel">
-            {jobStats.length ? <ChartCanvas option={pieOption} className="dashboard-chart" /> : <Empty description="暂无岗位市场数据" />}
+          <Card title={primaryDomain === 'technology' ? '历史岗位样本分布' : '岗位资料范围'} variant="borderless" className="dashboard-panel chart-panel">
+            {primaryDomain === 'technology' ? <>
+              <Typography.Paragraph type="secondary">原有企业材料中的历史样本，日期缺少完整年份；此分布不代表当前市场，也不适用于新增试点领域。</Typography.Paragraph>
+              {jobStats.length ? <ChartCanvas option={pieOption} className="dashboard-chart" /> : <Empty description="暂无历史岗位样本" />}
+            </> : <Typography.Paragraph type="secondary">市场与内容、人力资源目前仅提供少量能力标准试点，尚未接入可追溯招聘样本，不提供招聘热度或薪资统计。可到职业探索页选择领域、查看标准依据。</Typography.Paragraph>}
           </Card>
         </Col>
         <Col xs={24} xl={14}>

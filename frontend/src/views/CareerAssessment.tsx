@@ -10,6 +10,7 @@ import {
   Modal,
   Progress,
   Radio,
+  Select,
   Space,
   Steps,
   Tag,
@@ -30,13 +31,13 @@ import { getErrorMessage } from '../api/client';
 import { buildAssessmentProfileText } from '../utils/careerPlan';
 import { getUserStorageKey } from '../utils/privateStorage';
 import { useAuthStore } from '../store/authStore';
+import { useCareerCatalog } from '../hooks/useCareerCatalog';
+import { StandardSourceNote } from '../components/StandardSourceNote';
+import { roleNamesMatch } from '../utils/careerPlan';
 
 const DRAFT_KEY = 'career-assessment-draft';
 
-const interestOptions = ['产品设计', '技术开发', '数据分析', 'AI 应用', '内容运营', '教育培训', '商业分析', '创意表达'];
-const skillOptions = ['沟通表达', 'Python', 'JavaScript', 'SQL', 'Office/Excel', '项目管理', '用户研究', '视频剪辑'];
-const softSkillOptions = ['逻辑分析', '主动学习', '团队协作', '抗压复盘', '同理心', '执行力'];
-const targetOptions = ['产品经理', '前端工程师', '数据分析师', 'AI 应用工程师', '运营增长', '后端工程师'];
+const interestOptions = ['产品设计', '技术开发', '数据分析', '内容传播', '市场策划', '招聘与培训', '教育培训', '创意表达'];
 
 const steps = [
   {
@@ -46,12 +47,12 @@ const steps = [
   },
   {
     title: '第 2 步：分析你的兴趣与能力',
-    description: '选择你感兴趣、已具备或愿意投入的方向。',
-    fields: ['interests', 'skills', 'softSkills']
+    description: '选择探索领域，填写已具备的能力。',
+    fields: ['domain', 'interests', 'skills', 'softSkills']
   },
   {
     title: '第 3 步：确认职业目标与经历',
-    description: '让 AI 结合真实经历判断岗位匹配度。',
+    description: '让 AI 整理真实经历，并明确想探索的岗位。',
     fields: ['targetRoles', 'experience']
   },
   {
@@ -82,6 +83,13 @@ export default function CareerAssessment() {
   const [submitting, setSubmitting] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
+  const { catalog, loading: catalogLoading, error: catalogError, reload: reloadCatalog } = useCareerCatalog();
+  const selectedDomain = Form.useWatch('domain', { form, preserve: true }) as string | undefined;
+  const selectedTargets = Form.useWatch('targetRoles', { form, preserve: true }) as string[] | undefined;
+  const domainRoles = catalog?.roles.filter((role) => role.domain === selectedDomain) || [];
+  const skillOptions = [...new Set(domainRoles.flatMap((role) => role.core_skills))].map((skill) => ({ value: skill, label: skill }));
+  const softSkillOptions = [...new Set(domainRoles.flatMap((role) => role.soft_skills))].map((skill) => ({ value: skill, label: skill }));
+  const selectedStandards = catalog?.roles.filter((role) => selectedTargets?.some((target) => roleNamesMatch(role.role_name, target))) || [];
 
   useEffect(() => {
     form.resetFields();
@@ -198,7 +206,7 @@ export default function CareerAssessment() {
             </Radio.Group>
           </Form.Item>
           <Form.Item name="major" label="所学专业" rules={[{ required: true, message: '请填写专业' }]}>
-            <Input size="large" placeholder="例如：计算机科学与技术" />
+            <Input size="large" placeholder="例如：市场营销 / 人力资源管理 / 软件工程" />
           </Form.Item>
           <Form.Item name="grade" label="当前阶段" rules={[{ required: true, message: '请选择当前阶段' }]}>
             <Radio.Group optionType="button" buttonStyle="solid">
@@ -218,20 +226,20 @@ export default function CareerAssessment() {
     if (currentStep === 1) {
       return (
         <Space direction="vertical" size={18} className="full-width">
+          <Form.Item name="domain" label="本次想探索的就业领域" rules={catalog ? [{ required: true, message: '请选择一个探索领域' }] : []}>
+            <Select size="large" loading={catalogLoading} placeholder={catalogError ? '目录暂不可用，可继续自填能力和目标' : '选择一个领域，查看对应的能力和岗位选项'}
+              disabled={!catalog} options={catalog ? [...catalog.domains.map((domain) => ({ value: domain.id, label: domain.label })), { value: 'custom', label: '其他方向 / 暂不确定（自填）' }] : []} />
+          </Form.Item>
           <Form.Item name="interests" label="你感兴趣的方向" rules={[{ required: true, message: '请至少选择 1 个兴趣方向' }]}>
             <Checkbox.Group className="full-width">
               <OptionGrid options={interestOptions} />
             </Checkbox.Group>
           </Form.Item>
-          <Form.Item name="skills" label="你目前具备的技能" rules={[{ required: true, message: '请至少选择 1 项当前技能' }]}>
-            <Checkbox.Group className="full-width">
-              <OptionGrid options={skillOptions} />
-            </Checkbox.Group>
+          <Form.Item name="skills" label="你目前具备的能力" extra="只填写实际掌握的能力；可选择或输入后按回车补充。尚未确认可留空，系统会说明信息不足。">
+            <Select mode="tags" size="large" options={skillOptions} tokenSeparators={['，', ',']} placeholder="例如：文案撰写、招聘信息整理、React" />
           </Form.Item>
-          <Form.Item name="softSkills" label="你的优势特质">
-            <Checkbox.Group className="full-width">
-              <OptionGrid options={softSkillOptions} />
-            </Checkbox.Group>
+          <Form.Item name="softSkills" label="你的优势特质" extra="选项来自当前领域的岗位标准，也可输入后按回车补充；只填写有经历支持的特质，尚未确认可留空。">
+            <Select mode="tags" size="large" options={softSkillOptions} tokenSeparators={['，', ',']} placeholder="例如：沟通协调、细致负责、保密意识" />
           </Form.Item>
         </Space>
       );
@@ -241,10 +249,11 @@ export default function CareerAssessment() {
       return (
         <Space direction="vertical" size={18} className="full-width">
           <Form.Item name="targetRoles" label="你想重点探索的职业方向" rules={[{ required: true, message: '请至少选择 1 个职业方向' }]}>
-            <Checkbox.Group className="full-width">
-              <OptionGrid options={targetOptions} />
-            </Checkbox.Group>
+            <Select mode="tags" size="large" options={domainRoles.map((role) => ({ value: role.role_name, label: role.role_name }))}
+              placeholder="选择目录内岗位，或输入自己的目标后按回车" tokenSeparators={['，', ',']} />
           </Form.Item>
+          <Typography.Paragraph type="secondary">建议把最关注的岗位放在第一项。目录仅覆盖有限岗位；自填目标没有标准时，将保留目标并说明暂不能评分。</Typography.Paragraph>
+          {selectedStandards.map((role) => <div key={role.role_id}><Typography.Text strong>{role.role_name}</Typography.Text><StandardSourceNote source={role.standard_source} /></div>)}
           <Form.Item name="experience" label="项目、实习或实践经历" rules={[{ required: true, message: '请简要描述一段经历，暂无也可说明想补齐的经历' }]}>
             <Input.TextArea
               autoSize={{ minRows: 5, maxRows: 8 }}
@@ -306,6 +315,11 @@ export default function CareerAssessment() {
       </section>
 
       <GrowthJourney current="assessment" />
+
+      {catalogError && <Alert type="warning" showIcon message="职业目录暂时无法加载"
+        description="仍可自行填写能力和目标岗位。当前无法核对支持范围，生成画像后请在推荐页重试目录；不会用固定技术岗位替代你的目标。"
+        action={<Button onClick={() => void reloadCatalog()}>重试目录</Button>} />}
+      {catalog && <Alert type="info" showIcon message="职业探索范围" description="当前支持技术与产品，以及市场与内容、人力资源的少量入门岗位试点。请先选择领域，再查看对应能力和标准依据；同一专业可以探索多个就业方向。" />}
 
       <Card className="assessment-card" variant="borderless">
         <div className="assessment-layout">

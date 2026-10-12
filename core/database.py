@@ -4,10 +4,17 @@ from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
 import os
+from dotenv import load_dotenv
 #数据库连接引擎!!
 # 获取当前项目根目录，并定位到 data 文件夹下的数据库文件
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DB_PATH = os.path.join(BASE_DIR, "data", "career_project.db")
+load_dotenv(os.path.join(BASE_DIR, ".env"))
+configured_path = os.getenv("CAREER_DATABASE_PATH", "").strip()
+DB_PATH = configured_path or os.path.join(BASE_DIR, "data", "career_project.db")
+if not os.path.isabs(DB_PATH):
+    DB_PATH = os.path.join(BASE_DIR, DB_PATH)
+DB_PATH = os.path.abspath(DB_PATH)
+os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
 
 # SQLite 连接 URL
 SQLALCHEMY_DATABASE_URL = f"sqlite:///{DB_PATH}"

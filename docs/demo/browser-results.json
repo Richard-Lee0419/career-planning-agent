@@ -1,0 +1,121 @@
+{
+  "account_preparation": "Only the disposable API-verifier account password was reset in the isolated database; generated plan/profile/progress were preserved.",
+  "base_url": "http://localhost:5174",
+  "checks": [
+    {
+      "name": "actual_ui_login",
+      "status": "passed"
+    },
+    {
+      "name": "restore_actual_ai_generated_version",
+      "roadmap_id": 5,
+      "source_version": "manual-pilot-2026-10-11-v1",
+      "status": "passed",
+      "tasks": [
+        {
+          "checked": true,
+          "text": "阅读并总结《教育部2025人力资源管理专业教学标准（高职专科）》中关于岗位需求分析的部分；产出：岗位需求分析总结报告；自查：对照标准，评估总结报告的准确性；预计4小时"
+        },
+        {
+          "checked": true,
+          "text": "研究美图官网招聘实习任务例证，总结招聘信息发布的最佳实践；产出：招聘信息发布最佳实践笔记；自查：根据笔记，设计一个招聘信息发布方案；预计4小时"
+        }
+      ]
+    },
+    {
+      "checked_task_count": 2,
+      "name": "ui_progress_save_and_reload",
+      "roadmap_id": 5,
+      "status": "passed"
+    },
+    {
+      "checked_task_count": 1,
+      "name": "ui_progress_uncheck_and_reload",
+      "roadmap_id": 5,
+      "status": "passed"
+    },
+    {
+      "bytes": 3492,
+      "http_status": 200,
+      "name": "ui_export_success_and_browser_report_fetch",
+      "native_download_file_verified": false,
+      "status": "passed"
+    },
+    {
+      "name": "saved_source_links_visible",
+      "status": "passed"
+    },
+    {
+      "links": [
+        {
+          "href": "https://www.moe.gov.cn/s78/A07/zcs_ztzl/2017_zt06/17zt06_bznr/bznr_zyjyzyjxbz/gdzyjy_zk/zk_ggglyfwdl/ggglyfwdl_gggll/202502/P020250207557906950427.pdf",
+          "text": "教育部2025人力资源管理专业教学标准（高职专科）"
+        },
+        {
+          "href": "https://hr.meitu.com/en/jobSocial/3e3010d0-840c-4c72-a4e2-134a6e75833e",
+          "text": "美图官网：招聘实习任务例证"
+        }
+      ],
+      "name": "saved_source_links_inspected",
+      "status": "passed"
+    },
+    {
+      "name": "human_resources_cards",
+      "score": 50,
+      "status": "passed",
+      "target": "招聘助理",
+      "titles": [
+        "招聘助理",
+        "培训助理",
+        "人事助理"
+      ]
+    },
+    {
+      "name": "switch_domain_preserves_primary_target",
+      "primary_target": "招聘助理",
+      "status": "passed",
+      "titles": [
+        "市场助理",
+        "内容运营",
+        "新媒体运营"
+      ],
+      "ui_text_excerpt": "智引未来\nAI 职业成长平台\n成长中心\n职业测评\n职业推荐\n学习路径\nAI 顾问\n面试训练\n合成招聘同学\n人力资源管理\n退出\nCareer Exploration\n按就业领域探索岗位与能力差距\n选择一个领域，查看已填能力覆盖了哪些岗位要求，以及下一步可以准备什么。覆盖参考不代表录用概率，不用于跨领域判断职业适合度。\n市场与内容\n市场与内容\n为当前参考岗位生成路径\n更新能力或目标\n当前探索领域\n市场与内容\n参考岗位\n市场助理\n岗位标准覆盖参考\n18%\n成长路径\n01\n认识自己\n02\n选择方向\n03\n制定路径\n04\n顾问答疑\n05\n面试验证\n如何阅读结果\n先选择领域和目标，再核对该标准的能力差距；不同岗位的标准粒度不同，百分比不能表示统一职业适合度。\n当前目标“招聘助理”属于人力资源；下方只探索市场与内容岗位。\n已填写的能力证据\n Excel\n 简历初筛\n 面试安排\n 团队合作\n你的探索目标\n你关注 招聘助理。请结合真实实践经历核对要求，再选择准备方向。\n当前参考岗位的待补充项\n 市场调研\n 营销策划\n 活动执行\n同领域岗位\n市场助理\n岗位标准覆盖参考\n18%\n覆盖与差距\n已覆盖 1 项核心岗位要求；仍有 5 项待补齐。\n基于岗位标准中的 6 项核心技能、3 项软素质，以及你填写的目标与兴趣；未填写的能力不视为已掌握。 这是当前标准的覆盖参考，不是录用概率或跨领域统一适合度。\n有限范围试点\n中国大陆 · 版本 manual-pilot-2026-10-11-v1\n查看工作任务、依据与适用范围\n已填写的相关依据\n已具备岗位要求：电子表格\n已具备软素质：团队协作\n需要核对或补齐的能力\n市场调研\n营销策划\n活动执行\n生成学习提升路径\n继续咨询 AI 职业顾问\n同领域岗位\n内容运营\n岗位标准覆盖参考\n5%\n覆盖与差距\n当前未找到已掌握技能与该岗位核心要求的直接匹配；请核对画像或探索能力差距。\n基于岗位标准中的 6 项核心技能、3 项软素质，以及你填写的目标与兴趣；未填写的能力不视为已掌握。 这是当前标准的覆盖参考，不是录用概率或跨领域统一适合度。\n有限范围试点\n中国大陆 · 版本 manual-pilot-2026-10-11-v1\n查看工作任务、依据与适用范围\n已填写的相关依据\n已具备软素质：团队协作\n需要核对或补齐的能力\n内容策划\n文案写作\n图文编辑\n生成学习提升路径\n继续咨询 AI 职业顾问\n同领域岗位\n新媒体运营\n岗位标准覆盖参考\n5%\n覆盖与差距\n当前未找到已掌握技能与该岗位核心要求的直接匹配；请核对画像或探索能力差距。\n基于岗位标准中的 6 项核心技能、3 项软素质，以及你填写的目标与兴趣；未填写的能力不视为已掌握。 这是当前标准的覆盖参考，不是录用概率或跨领域统一适合度。\n有限范围试点\n中国大陆 · 版本 manual-pilot-2026-10-11-v1\n查看工作任务、依据与适用范围\n已填写的相关依据\n已具备软素质：团队协作\n需要核对或补齐的能力\n内容策划\n平台运营\n图文编辑\n生成学习提升路径\n继续咨询 AI 职业顾问\n本领域尚未接入可追溯招聘样本\n当前展示的是有限岗位能力标准试点，不提供招聘热度、薪资统计或岗位数量结论。\nhuman_resources\nmarketing_content\n技术与产品\n人力资源\n市场与内容"
+    },
+    {
+      "layout": {
+        "card_count": 1,
+        "first_card_width": 1480,
+        "grid_width": 1480
+      },
+      "name": "final_saved_progress_and_layout",
+      "status": "passed",
+      "tasks": [
+        {
+          "checked": true,
+          "text": "阅读并总结《教育部2025人力资源管理专业教学标准（高职专科）》中关于岗位需求分析的部分；产出：岗位需求分析总结报告；自查：对照标准，评估总结报告的准确性；预计4小时"
+        },
+        {
+          "checked": false,
+          "text": "研究美图官网招聘实习任务例证，总结招聘信息发布的最佳实践；产出：招聘信息发布最佳实践笔记；自查：根据笔记，设计一个招聘信息发布方案；预计4小时"
+        }
+      ]
+    }
+  ],
+  "date": "2026-10-12",
+  "intercepted_api": false,
+  "limits": [
+    "The closeout restores an actual model-generated API version; the earlier failed UI generation did not succeed.",
+    "A prior UI generation returned more than two milestones and was rejected with HTTP 502; no saved path was produced.",
+    "Native download file persistence was not observable; UI success and a browser-network report fetch were verified.",
+    "An initial script assumed four tasks although this saved plan contained two; the assertion was corrected against the stored result.",
+    "On initial refresh the shared 127.0.0.1 origin restored another synthetic account and returned 404. Cause was not fully established; localhost storage isolation recovered the intended account.",
+    "A full-page capture fell back to a viewport and a later viewport screenshot timed out. These capture failures are not counted as application failures or successful captures.",
+    "No recommendation-accuracy, advice-quality or usability metric was measured."
+  ],
+  "screenshots": {
+    "recommendations": "screenshots/hr-recommendations.png",
+    "sources": "screenshots/recruiting-source.png"
+  },
+  "status": "passed_with_limits",
+  "synthetic_account": true
+}

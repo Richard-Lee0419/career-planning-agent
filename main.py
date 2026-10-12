@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, ValidationError, field_validator
 from dotenv import load_dotenv
 from zhipuai import ZhipuAI, APITimeoutError, APIConnectionError, APIStatusError
-from typing import Optional, List
+from typing import Optional, List, Literal
 from fastapi import Query, Header
 from models.user_model import UserProfile
 from pydantic import Field
@@ -52,6 +52,7 @@ import pdfplumber
 from fastapi import UploadFile, File, Depends, HTTPException
 from io import BytesIO
 from core.matching import profile_data, read_list, role_matches, score_role
+from core.standards import load_pilot_dataset, standard_metadata
 from models.db_models import DBChatSession, DBAudioJob
 # ==========================================
 # 1. 基础配置与大模型初始化
@@ -256,6 +257,30 @@ class ChatResponse(BaseModel):
     reply: str                       # 这里只放“洗干净”后的纯文本回复
     graph_data: Optional[dict] = None  # ✨ 这里放剥离出来的 JSON 对象，前端直接拿这个画图
     blocks: List[dict] = []          # 保持结构兼容
+
+
+class MockInterviewGraph(BaseModel):
+    """Only validated question lists may reach the interactive interview panel."""
+
+    type: Literal["mock_interview"]
+    role: str = Field(..., min_length=1, max_length=100)
+    questions: List[str] = Field(..., min_length=1, max_length=10)
+
+    @field_validator("role")
+    @classmethod
+    def role_must_have_text(cls, value):
+        value = value.strip()
+        if not value:
+            raise ValueError("面试目标岗位不能为空")
+        return value
+
+    @field_validator("questions")
+    @classmethod
+    def questions_must_have_text(cls, values):
+        values = [value.strip() for value in values]
+        if any(not value or len(value) > 2000 for value in values):
+            raise ValueError("面试题必须为不超过 2000 字的非空文本")
+        return values
 # --- 建立简单的内存数据库来存储聊天记录 ---
 session_memory = {}
 
@@ -709,6 +734,18 @@ class ProfileIntakeResponse(BaseModel):
     next_questions: List[str] = []
 
 
+class ResumeProfileExtraction(UserProfile):
+    """An extraction must contain its requested fields, even when facts are unknown."""
+
+    name: Optional[str] = Field(...)
+    education_level: Optional[str] = Field(...)
+    major: Optional[str] = Field(...)
+    current_skills: List[str] = Field(...)
+    certificates: List[str] = Field(...)
+    internship_experience: Optional[str] = Field(...)
+    target_roles: List[str] = Field(...)
+
+
 # ==========================================
 # 语音处理模块 (STT)
 # ==========================================
@@ -1020,7 +1057,9 @@ async def upload_resume_pdf(
             response_format={"type": "json_object"}
         )
 
-        raw_info = json.loads(response.choices[0].message.content)
+        raw_info = ResumeProfileExtraction.model_validate(
+            json.loads(response.choices[0].message.content)
+        ).model_dump(exclude_unset=True)
 
         # 4. 调用上面抽取的“确定性算法与持久化逻辑”
         updated_profile = calculate_and_save_profile(db, current_user.id, raw_info)
@@ -1031,8 +1070,13 @@ async def upload_resume_pdf(
             "data": raw_info  # 返回给前端展示
         }
     except HTTPException:
+        db.rollback()
         raise
+    except (json.JSONDecodeError, ValidationError, TypeError, ValueError):
+        db.rollback()
+        raise HTTPException(status_code=502, detail="AI 返回的简历画像格式无效，未更新画像，请重试")
     except Exception:
+        db.rollback()
         raise HTTPException(status_code=502, detail="PDF 解析暂时失败，请检查文件后重试")
 
 
@@ -1249,6 +1293,30 @@ def delete_chat_session(session_id: str, db: Session = Depends(get_db),
     return {"status": "cleared"}
 
 
+def compact_standard_source(source) -> Optional[dict]:
+    if not isinstance(source, dict):
+        return None
+    compact = {key: str(source.get(key) or "")[:80] for key in
+               ("type", "version", "region", "review_status")}
+    compact["limitations"] = [str(item)[:160] for item in source.get("limitations", [])[:2]]
+    return compact
+
+
+def standard_planning_notice(match: Optional[dict]) -> str:
+    if not match:
+        return "暂无该岗位标准，本路径仅为AI探索建议，未验证该职业的能力差距。"
+    source = match["standard_source"]
+    if source["review_status"] == "modified_unverified":
+        return "当前标准已修改，来源核对状态已失效；不能用它确认能力差距，需重新核对。"
+    if match["domain"] == "unclassified":
+        return "旧岗位标准来源未核实，本路径仅为探索建议，未验证该职业的能力差距。"
+    if source["type"] == "manual_pilot" and source["review_status"] == "source_checked":
+        return "依据人工试点职业标准规划；只经过来源核对，建议仍需结合具体岗位和个人经历复核。"
+    if source["type"] == "demo_example":
+        return "依据演示示例标准规划；示例未经真实招聘需求验证，建议需自行复核。"
+    return "依据旧岗位标准规划；来源未核实，建议需结合具体岗位和个人经历复核。"
+
+
 def advisor_context(db: Session, user_id: int, target_role: Optional[str], roadmap_id: Optional[int]) -> str:
     profile = db.query(DBUserProfile).filter(DBUserProfile.user_id == user_id).first()
     facts = profile_data(profile) if profile else {}
@@ -1260,21 +1328,39 @@ def advisor_context(db: Session, user_id: int, target_role: Optional[str], roadm
     context = {"target_role": role, "profile": compact}
     standard = find_job_standard(db, role) if role else None
     if profile and standard:
-        match = score_role(facts, standard)
+        match = scored_standard(db, facts, standard)
         context["job_match"] = {key: match[key] for key in
             ("score", "matched_skills", "missing_skills", "matched_soft_skills", "missing_soft_skills")}
         for key in ("matched_skills", "missing_skills", "matched_soft_skills", "missing_soft_skills"):
-            context["job_match"][key] = context["job_match"][key][:8]
+            context["job_match"][key] = context["job_match"][key][:8] if match["score"] is not None else []
+        context["standard_source"] = compact_standard_source(match["standard_source"])
+        context["standard_notice"] = standard_planning_notice(match)
+    elif role:
+        context["standard_notice"] = "目标岗位暂无可用标准，仅能提供探索建议，不能据此确认能力差距。"
     roadmap = (get_owned_roadmap(db, user_id, roadmap_id) if roadmap_id else
                latest_roadmap_for_role(db, user_id, role))
     if roadmap:
         try:
             saved = json.loads(roadmap.roadmap_json)
+            completed = set(read_list(roadmap.progress_json))
+            ordered_tasks = [
+                {"phase": stage.get("phase", ""), "task": task,
+                 "key": f"{stage.get('phase', '')}::{task}"}
+                for stage in saved.get("milestones", [])
+                for task in stage.get("focus_targets", []) if isinstance(task, str)
+            ]
+            pending = [task for task in ordered_tasks if task["key"] not in completed]
             context["current_roadmap"] = {
                 "id": roadmap.id, "summary": str(saved.get("summary", ""))[:400],
                 "milestones": [{"phase": item.get("phase"), "focus_targets": item.get("focus_targets", [])[:6]}
                                for item in saved.get("milestones", [])[:4]],
                 "completed_tasks": read_list(roadmap.progress_json)[:30],
+                "next_pending_task": ({"phase": str(pending[0]["phase"])[:100],
+                                       "task": pending[0]["task"][:600]} if pending else None),
+                "remaining_task_count": len(pending),
+                "standard_source": compact_standard_source(saved.get("standard_source")),
+                "standard_notice": str(saved.get("standard_notice") or
+                    "旧路径未保存标准来源，不能用当前标准证明当时的规划依据。")[:180],
             }
         except (TypeError, ValueError, AttributeError):
             pass
@@ -1292,6 +1378,9 @@ def advisor_context(db: Session, user_id: int, target_role: Optional[str], roadm
             key: ([str(item)[:50] for item in value[:3]] if isinstance(value, list) else value)
             for key, value in context["job_match"].items()
         }
+    for key in ("standard_source", "standard_notice"):
+        if key in context:
+            reduced[key] = context[key]
     if "current_roadmap" in context:
         saved = context["current_roadmap"]
         reduced["current_roadmap"] = {
@@ -1300,6 +1389,10 @@ def advisor_context(db: Session, user_id: int, target_role: Optional[str], roadm
                             "focus_targets": [str(task)[:60] for task in item["focus_targets"][:2]]}
                            for item in saved["milestones"][:2]],
             "completed_tasks": [str(task)[:70] for task in saved["completed_tasks"][:6]],
+            "next_pending_task": saved["next_pending_task"],
+            "remaining_task_count": saved["remaining_task_count"],
+            "standard_source": saved["standard_source"],
+            "standard_notice": saved["standard_notice"],
         }
     return json.dumps(reduced, ensure_ascii=False)
 
@@ -1371,14 +1464,19 @@ async def career_chat(
     # 2. 构造 Prompt（强化对 JSON 格式的约束）
     # 2. 构造 Prompt（强化对 JSON 格式的约束与场景区分）
     system_instruction = (
-        "你是一个专业的职业规划专家和严厉的技术面试官。\n"
+        "你是一个专业的职业规划导师，按用户目标职业扮演相应领域的面试官。\n"
+        "目标可能属于市场、内容、人力资源或技术领域；不要默认要求编程、开源项目或技术职级。\n"
+        "来源核对后的试点标准不代表市场统计或录用保证；无可用标准时明确仅为探索建议。\n"
+        "讨论下一步行动时，先核对所选路径的next_pending_task和remaining_task_count；"
+        "先处理同阶段尚未完成的任务，不能因勾选一项就跳过其他任务。"
+        "下一项为空且余项为0时说明路径已完成；没有路径时不要假装知道进度。\n"
         "【普通问答】如果用户只是询问职业建议、能力提升、学习计划、实习准备或岗位方向，必须直接用自然语言回答，严禁只返回结构化 JSON。\n"
         "【结构化数据】只有在用户明确要求图谱、画图、晋升图谱或模拟面试题组时，才附加结构化数据。结构化数据必须包裹在 [[GRAPH_START]] 和 [[GRAPH_END]] 之间，且严禁使用 ```json 标记。\n"
         "即使附加结构化数据，也必须先给出一段面向用户的中文解释或结论，不能让文字回复为空。\n\n"
 
-        "【场景1：职业图谱】如果用户要求'渲染大厂晋升图谱'，请返回如下格式：\n"
+        "【场景1：职业图谱】如果用户要求职业发展图谱，请按其目标给出探索阶段。无来源时不填写薪资，不虚构企业职级或晋升关系，技能是否掌握只据用户事实。格式示例：\n"
         "[[GRAPH_START]]\n"
-        '{"type": "career_map", "levels": [{"id": "L1", "level": "P5", "title": "初级工程师", "status": "acquired", "salaryRange": "15k-20k", "coreSkills": [{"name": "Python", "isMastered": true}]}]}\n'
+        '{"type": "career_map", "levels": [{"id": "L1", "level": "入门准备", "title": "用户目标岗位", "status": "not acquired", "salaryRange": "", "coreSkills": []}]}\n'
         "[[GRAPH_END]]\n\n"
 
         "【场景2：全真模拟面试】🚨 核心警告：当用户开启模拟面试时，绝对不许你自己把【提问】和【回答】全部模拟写出来！你只需要扮演考官简短地打个招呼，然后根据用户的技能池，生成 3-5 道循序渐进的面试题，并严格按照以下 JSON 格式输出，前端组件会自动接管用户的答题和打分流程：\n"
@@ -1436,6 +1534,13 @@ async def career_chat(
                 safe_log(f"❌ [后端脱壳] 解析 JSON 失败: {e}")
                 # 解析失败时，clean_reply 依然是切干净的文本，不会显示代码乱码
 
+        # A valid JSON object can still be unusable by the interview panel.
+        if isinstance(final_graph_obj, dict) and final_graph_obj.get("type") == "mock_interview":
+            try:
+                final_graph_obj = MockInterviewGraph.model_validate(final_graph_obj).model_dump()
+            except ValidationError:
+                raise HTTPException(status_code=502, detail="AI 返回的面试题组格式无效，未保存对话，请重试")
+
         # ==========================================
         if not clean_reply.strip():
             if isinstance(final_graph_obj, dict):
@@ -1451,7 +1556,10 @@ async def career_chat(
 
         # A cleared session cannot receive a late model response.
         if request.session_id and not created_session:
-            db.refresh(session)
+            # Refresh only the concurrent-close flag. A full refresh discards the
+            # pending target/roadmap updates while autoflush is disabled. Do not
+            # flush before awaiting AI: that would hold a SQLite write lock.
+            db.refresh(session, attribute_names=["closed_at"])
             if session.closed_at:
                 raise HTTPException(status_code=409, detail="该对话已清空，请新建对话")
         # 4. 持久化存储（存入数据库的是干净的文本，不含 [[...]] 乱码）
@@ -1514,6 +1622,7 @@ class FullGapAnalysisResponse(BaseModel):
     missing_requirements: List[str] = Field(default_factory=list)
     skill_coverage: int = Field(..., ge=0, le=100)
     soft_skill_coverage: Optional[int] = Field(None, ge=0, le=100)
+    standard_source: Optional[dict] = None
 
 def find_job_standard(db: Session, role: str):
     standards = db.query(DBJobStandardProfile).all()
@@ -1527,8 +1636,39 @@ def latest_roadmap_for_role(db: Session, user_id: int, role: Optional[str]):
     return next((item for item in records if item.role_name and role_matches(item.role_name, role)), None)
 
 
+def scored_standard(db: Session, facts: dict, standard: DBJobStandardProfile) -> dict:
+    result = score_role(facts, standard)
+    result.update(standard_metadata(db, standard))
+    source = result["standard_source"]
+    if source["review_status"] == "modified_unverified" or result["domain"] == "unclassified":
+        result["score"] = None
+        result["evidence"] = "该标准缺少可确认的当前来源或领域，暂不计算覆盖参考；请先核对标准。"
+    else:
+        result["evidence"] += " 这是当前标准的覆盖参考，不是录用概率或跨领域统一适合度。"
+    return result
+
+
+@app.get("/api/career/catalog", summary="实际已导入的职业与能力目录")
+def career_catalog(db: Session = Depends(get_db)):
+    roles = []
+    for standard in db.query(DBJobStandardProfile).order_by(DBJobStandardProfile.role_name).all():
+        roles.append({
+            **standard_metadata(db, standard), "role_name": standard.role_name,
+            "description": standard.description or "", "core_skills": read_list(standard.core_skills),
+            "soft_skills": read_list(standard.soft_skills),
+        })
+    domains = {role["domain"]: role["domain_label"] for role in roles}
+    package = load_pilot_dataset()
+    skills = [{"id": identifier, "label": label, "aliases": package.skill_aliases.get(label, [])}
+              for label, identifier in package.skill_ids.items()]
+    return {"domains": [{"id": key, "label": label} for key, label in domains.items()],
+            "roles": roles, "skills": skills,
+            "scoring_note": "先选择领域和目标，再核对该标准的能力差距；不同岗位的标准粒度不同，百分比不能表示统一职业适合度。"}
+
+
 @app.get("/api/recommendations", summary="基于岗位标准的可解释综合匹配度")
 def get_recommendations(
+    domain: Optional[str] = Query(None, min_length=1, max_length=80),
     db: Session = Depends(get_db),
     current_user: DBUser = Depends(get_current_user),
 ):
@@ -1536,10 +1676,12 @@ def get_recommendations(
     if not profile:
         return {"data": [], "scoring_method": "请先生成个人画像，系统才能根据岗位标准计算综合匹配度。"}
     facts = profile_data(profile)
-    scored = [score_role(facts, item) for item in db.query(DBJobStandardProfile).all()]
+    scored = [scored_standard(db, facts, item) for item in db.query(DBJobStandardProfile).all()]
+    if domain:
+        scored = [item for item in scored if item["domain"] == domain]
     scored.sort(key=lambda item: (item["score"] is not None, item["score"] or 0,
                                   item["target_preference"], len(item["matched_skills"])), reverse=True)
-    return {"data": scored, "scoring_method": "核心技能 80%、软素质 15%、目标/兴趣 5%；无岗位标准或能力证据时不计算百分比。"}
+    return {"data": scored, "scoring_method": "核心技能 80%、软素质 15%、目标/兴趣 5%；证据不足不计算百分比。分数仅是标准覆盖参考，不能作为跨领域统一适合度或录用概率。"}
 
 
 @app.post("/api/agent/gap-analysis", summary="四维差距分析", tags=["Agent核心逻辑"])
@@ -1559,14 +1701,15 @@ def gap_analysis_endpoint(
     standard_job = find_job_standard(db, target_role)
     if not standard_job:
         raise HTTPException(status_code=404, detail="暂无该岗位的标准要求，无法计算综合匹配度")
-    match = score_role(profile_data(db_profile), standard_job)
+    match = scored_standard(db, profile_data(db_profile), standard_job)
     if match["score"] is None:
-        raise HTTPException(status_code=422, detail="请先补充技能或软素质，再计算综合匹配度")
+        raise HTTPException(status_code=422, detail="能力证据或当前标准来源不足，暂无法计算覆盖参考")
     job_ref = f"技能要求: {standard_job.core_skills}, 素质要求: {standard_job.soft_skills}"
 
     # 3. 构造 Prompt，强制约束字段名
     system_instruction = (
         "你是一个职业对齐分析引擎。对比用户信息与岗位标准，进行四维量化分析。\n"
+        "按目标职业解释具体任务，不默认技术岗位。维度分数是模型解释，不能称为经测量的就业能力或录用概率。\n"
         "必须严格返回 JSON，不得包含 ```json 标签。\n"
         "JSON 字段名必须完全匹配：\n"
         "{\n"
@@ -1621,6 +1764,7 @@ def gap_analysis_endpoint(
                 skill_coverage=round(100 * len(match["matched_skills"]) / len(read_list(standard_job.core_skills))),
                 soft_skill_coverage=(round(100 * len(match["matched_soft_skills"]) / len(read_list(standard_job.soft_skills)))
                                      if read_list(standard_job.soft_skills) else None),
+                standard_source=match["standard_source"],
             )
 
         except (json.JSONDecodeError, ValidationError, KeyError, TypeError, ValueError):
@@ -1642,6 +1786,90 @@ class LearningMilestone(BaseModel):
     focus_targets: List[str] = Field(..., min_length=1, description="该阶段的核心学习目标/知识点")
     recommended_resources: List[str] = Field(..., description="推荐的学习资源、书籍或实战动作")
 
+class PilotLearningTask(BaseModel):
+    target_skill: str = Field(..., min_length=1, max_length=80)
+    action: str = Field(..., min_length=1)
+    deliverable: str = Field(..., min_length=1)
+    self_check: str = Field(..., min_length=1)
+    estimated_hours: Optional[float] = Field(..., gt=0, le=40, allow_inf_nan=False)
+
+    @field_validator("target_skill", "action", "deliverable", "self_check")
+    @classmethod
+    def meaningful_text(cls, value):
+        if not value.strip():
+            raise ValueError("任务内容不能为空白")
+        return value.strip()
+
+
+class PilotLearningMilestone(BaseModel):
+    phase: str = Field(..., min_length=1)
+    weeks: int = Field(..., ge=1, le=4, strict=True)
+    focus_targets: List[PilotLearningTask] = Field(..., min_length=1, max_length=2)
+    recommended_resources: List[str]
+
+
+class PilotLearningPlan(BaseModel):
+    summary: str = Field(..., min_length=1)
+    milestones: List[PilotLearningMilestone] = Field(..., min_length=1, max_length=2)
+    conclusion: str = Field(..., min_length=1)
+
+
+def render_pilot_plan(plan: dict, weekly_time: Optional[str], allowed_targets: List[str]) -> dict:
+    """Validate bounded tasks before rendering them in the existing history format."""
+    parsed = PilotLearningPlan.model_validate(plan)
+    if sum(stage.weeks for stage in parsed.milestones) > 4:
+        raise ValueError("试点入门计划不得超过4周")
+    budget = re.search(r"(?:每周|每星期)\s*(\d+(?:\.\d+)?)(?:\s*[-–—~至]\s*(\d+(?:\.\d+)?))?\s*(?:个)?(?:小时|h)",
+                       weekly_time or "", re.IGNORECASE)
+    weekly_hours = float(budget.group(2) or budget.group(1)) if budget else None
+    rendered = {"summary": parsed.summary, "conclusion": parsed.conclusion, "milestones": []}
+    start_week = 1
+    for stage in parsed.milestones:
+        if any(task.target_skill not in allowed_targets for task in stage.focus_targets):
+            raise ValueError("任务目标必须来自本次待补齐能力；全部已匹配时才可深化已有能力")
+        if weekly_hours is not None:
+            if any(task.estimated_hours is None for task in stage.focus_targets):
+                raise ValueError("已填写时间预算，任务必须给出耗时")
+            if sum(task.estimated_hours for task in stage.focus_targets) > weekly_hours * stage.weeks:
+                raise ValueError("任务耗时超过用户的阶段时间预算")
+        elif any(task.estimated_hours is not None for task in stage.focus_targets):
+            raise ValueError("时间预算尚未确认，不能猜测耗时")
+        end_week = start_week + stage.weeks - 1
+        rendered["milestones"].append({
+            "phase": stage.phase,
+            "period": f"第{start_week}周" if end_week == start_week else f"第{start_week}–{end_week}周",
+            "focus_targets": [f"能力：{task.target_skill}；{task.action}；产出：{task.deliverable}；自查：{task.self_check}；"
+                              + (f"预计{task.estimated_hours:g}小时" if task.estimated_hours is not None else "耗时待确认")
+                              for task in stage.focus_targets],
+            "recommended_resources": stage.recommended_resources,
+        })
+        start_week = end_week + 1
+    return rendered
+
+
+def validate_pilot_roadmap(plan: dict, weekly_time: Optional[str], allowed_targets: List[str],
+                           known_sources: List[dict]) -> dict:
+    """Normalize source labels, then validate tasks without trusting the model's score."""
+    if not isinstance(plan, dict):
+        raise ValueError("路径必须是对象")
+    for milestone in plan.get("milestones", []):
+        if not isinstance(milestone, dict):
+            raise ValueError("阶段必须是对象")
+        resources = milestone.get("recommended_resources", [])
+        if not isinstance(resources, list):
+            raise ValueError("资源必须是数组")
+        milestone["recommended_resources"] = [
+            f"岗位背景参考（非学习教程）—{source['title']}：{source['url']}"
+            for source in known_sources
+            if any(source["url"] in str(resource) for resource in resources)
+        ]
+    rendered = render_pilot_plan(plan, weekly_time, allowed_targets)
+    task_text = " ".join(task for stage in rendered["milestones"] for task in stage["focus_targets"])
+    if re.search(r"认证|考证|资格证|证书考试|certificat", task_text, re.IGNORECASE):
+        raise ValueError("试点未核实资格要求，不得生成考证任务")
+    return rendered
+
+
 class ActionableRoadmapResponse(BaseModel):
     id: Optional[int] = None
     created_at: Optional[str] = None
@@ -1650,6 +1878,9 @@ class ActionableRoadmapResponse(BaseModel):
     summary: str = Field(..., description="路径规划总览")
     milestones: List[LearningMilestone] = Field(..., min_length=1, max_length=8, description="分阶段执行路径")
     conclusion: str = Field(..., description="职业导师的寄语")
+    standard_source: Optional[dict] = None
+    standard_notice: str = "旧路径未保存标准来源；建议为模型生成内容，请自行核对。"
+    generation_attempts: Optional[int] = None
 
 
 def saved_roadmap_response(record: DBRoadmap) -> ActionableRoadmapResponse:
@@ -1661,10 +1892,10 @@ def saved_roadmap_response(record: DBRoadmap) -> ActionableRoadmapResponse:
 
 
 # ==========================================
-# 模块 4：学习路径规划核心接口 (🔥 已升级：生成器-反馈器 对抗架构)
+# 模块 4：学习路径规划核心接口（模型起草、评审与受限修正）
 # ==========================================
 @app.post("/api/agent/learning-path", response_model=ActionableRoadmapResponse,
-          summary="生成进阶学习路径 (Actor-Critic架构)")
+          summary="生成分阶段学习路径（起草与评审）")
 async def learning_path_endpoint(
         target_role: str = Query(..., min_length=1, max_length=100, description="目标岗位"),
         idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key", min_length=8, max_length=100),
@@ -1679,7 +1910,7 @@ async def learning_path_endpoint(
                 raise HTTPException(status_code=409, detail="请求标识已用于其他目标岗位")
             return saved_roadmap_response(previous)
     _check_ai_limit(current_user.id)
-    safe_log(f"\n🔬 [系统日志] 正在为用户 {current_user.username} 启动【多智能体协同】生成学习路径...")
+    safe_log(f"[路径生成] 用户ID={current_user.id}，开始起草与评审")
 
     # 1. 自动调取用户最新的画像
     db_profile = db.query(DBUserProfile).filter(DBUserProfile.user_id == current_user.id).first()
@@ -1689,10 +1920,41 @@ async def learning_path_endpoint(
     user_context = profile_data(db_profile)
     user_context["target_role"] = target_role
     standard = find_job_standard(db, target_role)
-    match_snapshot = score_role(user_context, standard) if standard else None
+    match_snapshot = scored_standard(db, user_context, standard) if standard else None
+    if standard and match_snapshot["standard_source"]["review_status"] == "modified_unverified":
+        raise HTTPException(status_code=422, detail="该标准内容已改变，需要重新核对来源后生成路径")
+    standard_notice = standard_planning_notice(match_snapshot)
     if match_snapshot:
-        user_context["matched_job_requirements"] = match_snapshot["matched_skills"][:8]
-        user_context["missing_job_requirements"] = match_snapshot["missing_skills"][:8]
+        if match_snapshot["score"] is not None:
+            user_context["matched_job_requirements"] = match_snapshot["matched_skills"][:8]
+            user_context["missing_job_requirements"] = match_snapshot["missing_skills"][:8]
+        user_context["standard_source"] = match_snapshot["standard_source"]
+        user_context["verified_certifications"] = read_list(standard.certifications)
+    user_context["standard_notice"] = standard_notice
+    pilot_plan = bool(match_snapshot and match_snapshot["standard_source"]["type"] == "manual_pilot")
+    allowed_targets = []
+    if pilot_plan:
+        missing = match_snapshot["missing_skills"] + match_snapshot["missing_soft_skills"]
+        allowed_targets = list(dict.fromkeys(missing or
+                         (read_list(standard.core_skills) + read_list(standard.soft_skills))))[:2]
+        user_context["allowed_learning_targets"] = allowed_targets
+        user_context["learning_mode"] = ("探索入门能力，信息不足不能断言未掌握"
+            if match_snapshot["score"] is None else
+            "补齐未匹配能力" if missing else "深化已匹配能力，不能宣称尚未掌握")
+        standard_notice += " 入门路径仅选取标准列表中的前两项可练习能力：" + "、".join(allowed_targets) + "；其余差距未在本次覆盖，这个顺序不代表已验证的职业重要性。"
+    task_shape = ('{"target_skill":"allowed_learning_targets中的原文","action":"具体动作","deliverable":"产出物","self_check":"自查方法","estimated_hours":2}'
+                  if pilot_plan else '"具体任务"')
+    period_shape = '"weeks":2' if pilot_plan else '"period":"..."'
+    task_contract = (
+        "本次试点focus_targets必须是任务对象数组，每项必须含非空action/deliverable/self_check及数值estimated_hours。"
+        "每个阶段用weeks整数1–4表示周数，所有阶段合计不得超过4周。任务耗时之和不超过该阶段周数乘每周时间预算。"
+        "用户没有明确每周小时信息时estimated_hours必须为null。不能用任务标题代替这些字段。"
+        "每项target_skill必须严格选自allowed_learning_targets原文，动作须实际训练该能力；已会技能只作为完成任务的工具。"
+        "练习只能依赖本人可用条件与虚构数据；未说明有导师、同事或真实候选人时不得要求其参与。"
+        "来源是岗位背景参考，不是操作教程；阅读来源只能辅助实践，不能代替作品任务。"
+        "本次只生成1个阶段（weeks=2），总共2项任务，分别训练给出的两项能力；不足两项时只生成1项。不要增加第三项或额外阶段。"
+        if pilot_plan else "focus_targets是具体任务字符串数组。"
+    )
 
     try:
         # ====================================================
@@ -1700,8 +1962,13 @@ async def learning_path_endpoint(
         # ====================================================
         generator_instruction = (
             "你是一个起草员。请根据用户现状，快速生成一个职业路径规划初稿。\n"
+            "按目标职业选择实际任务和作品证据，非技术岗位不默认安排编程。标准不存在或证据不足时，明确探索性质；不编造招聘热度、薪资或资格结论。\n"
             "按用户填写的每周学习时间安排阶段，缺少时间信息时不要猜测。每个阶段至少有一项具体任务。\n"
-            "必须返回严格 JSON：{\"summary\": \"...\", \"milestones\": [{\"phase\": \"...\", \"period\": \"...\", \"focus_targets\": [\"具体任务\"], \"recommended_resources\": []}], \"conclusion\": \"...\"}"
+            "先给出2–4周的入门行动：最多2阶段，每阶段2项任务，不默认生成多年路线。每项任务用一句话写明动作、产出物、自查方法和预计小时，所有任务时间须符合用户每周预算。不要把已会技能重复写成待补齐项。\n"
+            "不得推荐未出现在verified_certifications中的认证、资格或考证。recommended_resources只能使用standard_source.sources里已提供的原始URL及标题；没有适用资源就返回空数组，不能猜书名、课程、证书或链接。\n"
+            + task_contract + "\n"
+            + '{"summary":"...","milestones":[{"phase":"...",' + period_shape + ',"focus_targets":['
+            + task_shape + '],"recommended_resources":[]}],"conclusion":"..."}'
         )
 
         gen_response = await ai_completion(
@@ -1710,7 +1977,7 @@ async def learning_path_endpoint(
                 {"role": "system", "content": generator_instruction},
                 {"role": "user", "content": f"用户信息：{json.dumps(user_context, ensure_ascii=False)}"}
             ],
-            temperature=0.5
+            temperature=0.5, max_tokens=1800
         )
         draft_json_str = gen_response.choices[0].message.content.strip().replace("```json", "").replace("```", "")
 
@@ -1720,20 +1987,23 @@ async def learning_path_endpoint(
         # 🔴 第二阶段：反馈器 (Critic) 审查并重构
         # ====================================================
         critic_instruction = (
-            "你是一位极其严苛的职场导师和技术架构师（Critic）。"
+            "你是一位目标职业领域的职场导师（Critic）。"
             "你的任务是审查【起草员】生成的学习路径初稿。找出其中的空洞、过于宽泛、不切实际或缺乏深度的地方。\n"
             "核对用户的岗位目标、已掌握技能、能力差距与每周学习时间；每阶段至少保留一项可执行任务。\n"
+            "对非技术岗位不要要求开源项目或编程，使用适用的任务、作品或资源；无依据的薪资、需求热度、资格承诺必须删除。\n"
+            "终稿限定2–4周入门行动：最多2阶段，每阶段2项任务；每项任务用一句话包含动作、产出物、自查方法和预计小时；核对每周预算，并优先填补未掌握要求。\n"
+            "verified_certifications为空时删除所有认证和考证任务。资源只允许standard_source.sources中提供的原始URL与标题；无可核对资源则返回空数组。不能凭评审分数宣称建议正确。\n"
             "请直接输出一份【打分评价】以及【深度重构后的终稿】。\n"
             "必须严格返回 JSON，结构如下：\n"
             "{\n"
             "  \"critic_score\": 75,\n"
-            "  \"critic_comments\": \"批评意见，例如：太笼统，缺少具体的开源项目推荐...\",\n"
+            "  \"critic_comments\": \"批评意见，例如：任务太笼统，缺少可核验作品或适用资源...\",\n"
             "  \"revised_roadmap\": {\n"
             "    \"summary\": \"...\",\n"
-            "    \"milestones\": [{\"phase\": \"...\", \"period\": \"...\", \"focus_targets\": [\"具体任务\"], \"recommended_resources\": []}],\n"
+            "    \"milestones\": [{\"phase\": \"...\", " + period_shape + ", \"focus_targets\": [" + task_shape + "], \"recommended_resources\": []}],\n"
             "    \"conclusion\": \"...\"\n"
             "  }\n"
-            "}"
+            "}" + task_contract
         )
 
         critic_response = await ai_completion(
@@ -1743,28 +2013,43 @@ async def learning_path_endpoint(
                 {"role": "user",
                  "content": f"目标岗位：{target_role}\n用户真实能力基底：{json.dumps(user_context, ensure_ascii=False)}\n\n【生成器初稿】：{draft_json_str}"}
             ],
-            temperature=0.3  # 降低温度，确保严谨性
+            temperature=0.3, max_tokens=1800
         )
 
         critic_raw = critic_response.choices[0].message.content.strip().replace("```json", "").replace("```", "")
-        critic_data = json.loads(critic_raw)
-
-        # 打印终端日志，供演示时展示 AI 内部博弈过程
-        if isinstance(critic_data.get("critic_score"), (int, float)):
-            safe_log(f"🔥 [反馈器] 审核完成！打分: {critic_data['critic_score']}/100")
-        safe_log(f"📝 [反馈器意见]: {critic_data.get('critic_comments', '无')}")
-        safe_log(f"✨ [系统] 已采用重构后的高质量规划路径返回给用户。")
-
-        # ====================================================
-        # 🔵 第三阶段：提取最终高价值数据返回
-        # ====================================================
-        final_roadmap = critic_data["revised_roadmap"]
+        generation_attempts = 2
+        if pilot_plan:
+            known_sources = match_snapshot["standard_source"]["sources"]
+            try:
+                final_roadmap = validate_pilot_roadmap(json.loads(critic_raw)["revised_roadmap"],
+                    user_context.get("weekly_learning_time"), allowed_targets, known_sources)
+            except (ValueError, KeyError, TypeError) as error:
+                # One bounded repair. Invalid repaired output still fails before persistence.
+                issues = ([{"field": list(item["loc"]), "type": item["type"]}
+                           for item in error.errors(include_input=False)]
+                          if isinstance(error, ValidationError) else [{"type": type(error).__name__,
+                              "reason": str(error) if type(error) is ValueError else "JSON结构或字段错误"}])
+                repair = await ai_completion(model=AI_TEXT_MODEL, messages=[
+                    {"role": "system", "content": generator_instruction +
+                        "\n你是唯一一次修正器；重新输出合规路径对象本身，不包裹revised_roadmap。"},
+                    {"role": "user", "content": json.dumps({"user_context": user_context,
+                        "validation_issues": issues, "invalid_output": critic_raw[:12000]}, ensure_ascii=False)},
+                ], temperature=0.1, max_tokens=1800)
+                generation_attempts = 3
+                repaired = repair.choices[0].message.content.strip().replace("```json", "").replace("```", "")
+                final_roadmap = validate_pilot_roadmap(json.loads(repaired),
+                    user_context.get("weekly_learning_time"), allowed_targets, known_sources)
+        else:
+            final_roadmap = json.loads(critic_raw)["revised_roadmap"]
 
         response_payload = ActionableRoadmapResponse(
             target_role=target_role,
             summary=final_roadmap["summary"],
             milestones=[LearningMilestone(**m) for m in final_roadmap["milestones"]],
-            conclusion=final_roadmap["conclusion"]
+            conclusion=final_roadmap["conclusion"],
+            standard_source=match_snapshot["standard_source"] if match_snapshot else None,
+            standard_notice=standard_notice,
+            generation_attempts=generation_attempts,
         )
 
         roadmap_data = (
@@ -1802,6 +2087,15 @@ async def learning_path_endpoint(
     except HTTPException:
         db.rollback()
         raise
+    except ValidationError as exc:
+        db.rollback()
+        fields = [{"location": item["loc"], "type": item["type"]} for item in exc.errors(include_input=False)]
+        safe_log(f"[路径校验失败] {json.dumps(fields, ensure_ascii=False)}")
+        raise HTTPException(status_code=502, detail="生成路径的任务结构不完整，请重试")
+    except ValueError as exc:
+        db.rollback()
+        safe_log(f"[路径校验失败] {type(exc).__name__}")
+        raise HTTPException(status_code=502, detail="生成路径未通过格式或时间预算校验，请重试")
     except Exception:
         db.rollback()
         raise HTTPException(status_code=502, detail="学习路径生成失败，请稍后再试")
@@ -2177,9 +2471,9 @@ async def export_report_endpoint(
             match = json.loads(roadmap.match_snapshot_json)
         except (TypeError, ValueError):
             pass
-    if match is None:
+    if match is None and not roadmap:
         standard = find_job_standard(db, role)
-        match = score_role(facts, standard) if standard else None
+        match = scored_standard(db, facts, standard) if standard else None
 
     def joined(items):
         return "、".join(items or []) or "未提供"
@@ -2202,15 +2496,25 @@ async def export_report_endpoint(
     ]
     if match:
         lines += [
-            f"- 综合匹配度：{str(match['score']) + '%' if match['score'] is not None else '证据不足，未计算'}",
+            f"- 标准覆盖参考：{str(match['score']) + '%' if match['score'] is not None else '证据不足，未计算'}",
             f"- 已匹配的核心技能：{joined(match['matched_skills'])}",
             f"- 尚缺的核心技能：{joined(match['missing_skills'])}",
             f"- 已匹配的软素质：{joined(match['matched_soft_skills'])}",
             f"- 尚缺的软素质：{joined(match['missing_soft_skills'])}",
             f"- 依据：{match['evidence']}",
         ]
+        source = match.get("standard_source")
+        if source:
+            lines += ["", "### 生成时的标准来源" if roadmap and roadmap.match_snapshot_json else "### 当前标准来源",
+                      f"- 类型：{source['type']}；版本：{source.get('version') or '未记录'}；地区：{source['region']}",
+                      f"- 核对状态：{source['review_status']}；仅表示来源核对，不代表效果验证。"]
+            lines += [f"- [{ref['title']}]({ref['url']})" for ref in source.get("sources", [])]
+            lines += [f"- 限制：{item}" for item in source.get("limitations", [])]
+        elif roadmap:
+            lines.append("- 旧版本未保存标准来源，不能用当前目录替代生成时证据。")
     else:
-        lines.append("该岗位暂无标准画像，无法计算综合匹配度。")
+        lines.append("该路径版本未保存匹配证据，不用当前标准替代历史依据。" if roadmap else
+                     "该岗位暂无标准画像，无法计算标准覆盖参考。")
     lines += ["", "## 已保存的学习路径", ""]
     if roadmap:
         try:
@@ -2218,7 +2522,7 @@ async def export_report_endpoint(
         except (TypeError, ValueError, ValidationError):
             raise HTTPException(status_code=422, detail="所选路径版本的数据格式无效")
         completed = set(read_list(roadmap.progress_json))
-        lines += [saved.summary, ""]
+        lines += [saved.standard_notice, "", saved.summary, ""]
         for item in saved.milestones:
             lines += [f"### {item.phase}（{item.period}）", ""]
             lines += [f"- {'[x]' if f'{item.phase}::{task}' in completed else '[ ]'} {task}"

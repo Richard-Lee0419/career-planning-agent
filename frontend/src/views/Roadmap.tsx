@@ -13,6 +13,7 @@ import { exportReport, fetchLearningPath } from '../api/agent';
 import { fetchRoadmapVersion, saveRoadmapProgress } from '../api/history';
 import { getErrorMessage } from '../api/client';
 import { GrowthJourney } from '../components/GrowthJourney';
+import { StandardSourceNote } from '../components/StandardSourceNote';
 import type { LearningMilestone, LearningPathResponse } from '../api/types';
 import { useProfile } from '../hooks/useProfile';
 import { downloadBlob } from '../utils/download';
@@ -96,7 +97,7 @@ function RoadmapPhaseCard({
 
       <div className="roadmap-block">
         <Typography.Text strong>学习目标</Typography.Text>
-        <Typography.Paragraph>{tasks.join('、')}</Typography.Paragraph>
+        <Typography.Paragraph>{tasks.map((task) => task.split('；产出：', 1)[0]).join('、')}</Typography.Paragraph>
       </div>
 
       <div className="roadmap-task-list">
@@ -301,7 +302,7 @@ export default function Roadmap() {
           </Tag>
           <Typography.Title>阶段能力提升计划</Typography.Title>
           <Typography.Paragraph>
-            将职业推荐转化为短期、中期、长期阶段任务。你可以标记完成状态、保存规划结果，并随时带着当前画像继续咨询 AI 顾问。
+            结合目标职业和可投入的时间安排阶段任务。你可以标记完成状态、回看已保存版本，并随时带着当前画像继续咨询 AI 顾问。
           </Typography.Paragraph>
           <Space className="hero-actions" wrap>
             <Input
@@ -309,7 +310,7 @@ export default function Roadmap() {
               size="large"
               value={targetRole}
               onChange={(event) => setTargetRole(event.target.value)}
-              placeholder="输入目标职业，例如：产品经理"
+              placeholder="输入目标职业，例如：内容运营 / 招聘助理"
               disabled={loading}
             />
             <Button type="primary" size="large" icon={<ThunderboltOutlined />} loading={loading} onClick={requestRoadmap}>
@@ -373,10 +374,13 @@ export default function Roadmap() {
           {historyId > 0 && <Alert type="info" showIcon
             message={`正在回看保存的路径版本 #${roadmap.id}`}
             description={roadmap.created_at ? `保存于 ${new Date(roadmap.created_at).toLocaleString()}；点击生成按钮可创建新版本。` : '旧版本未记录保存时间；点击生成按钮可创建新版本。'} />}
+          <Card title="本路径使用的标准依据" variant="borderless">
+            <StandardSourceNote source={roadmap.standard_source} notice={roadmap.standard_notice || (roadmap.standard_source ? 'AI 生成的任务与资源需要自行核对。' : '此路径未保存标准来源；AI 生成的任务与资源需要自行核对。')} />
+          </Card>
           <Card className="story-next-task" variant="borderless">
             <div>
               <Typography.Text className="story-section-label">当前行动 · {roadmap.target_role}</Typography.Text>
-              <Typography.Title level={3}>{nextPendingTask?.task || '当前版本的任务已全部完成'}</Typography.Title>
+              <Typography.Title level={3}>{nextPendingTask?.task.split('；产出：', 1)[0] || '当前版本的任务已全部完成'}</Typography.Title>
               <Typography.Paragraph type="secondary">
                 {nextPendingTask ? `${nextPendingTask.phase} · ${nextPendingTask.period}。完成后在阶段任务中记录进度。` : '你可以回看已完成的任务，或明确下一阶段目标后生成新版本。'}
               </Typography.Paragraph>

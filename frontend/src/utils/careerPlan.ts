@@ -1,8 +1,11 @@
-import type { RoleMatch, UserProfile } from '../api/types';
+import type { CareerCatalogRole, RoleMatch, StandardSource, UserProfile } from '../api/types';
 
 export interface CareerRecommendation {
   title: string;
-  match: number;
+  match: number | null;
+  domain: string;
+  domainLabel: string;
+  standardSource?: StandardSource | null;
   subtitle: string;
   reason: string;
   fitReasons: string[];
@@ -42,8 +45,21 @@ export function roleNamesMatch(a: string, b: string) {
   return normalize(a) === normalize(b);
 }
 
-export function getCareerRecommendations(_profile?: UserProfile | null, matches: RoleMatch[] = []) {
-  return matches.filter((item) => item.score !== null).slice(0, 3).map((item) => {
+export function getTargetDomain(profile?: UserProfile | null, roles: Pick<CareerCatalogRole, 'role_name' | 'domain'>[] = []) {
+  const target = getPrimaryTargetRole(profile);
+  if (!target) return '';
+  return roles.find((role) => roleNamesMatch(role.role_name, target))?.domain || '';
+}
+
+export function getCareerRecommendations(profile?: UserProfile | null, matches: RoleMatch[] = [], domain?: string) {
+  const selectedDomain = domain || getTargetDomain(profile, matches.map((item) => ({
+    role_name: item.role_name, domain: item.domain || 'technology'
+  })));
+  if (!selectedDomain) return [];
+  const domainMatches = matches.filter((item) => (item.domain || 'technology') === selectedDomain);
+  const target = domainMatches.find((item) => roleNamesMatch(item.role_name, getPrimaryTargetRole(profile)));
+  const visibleMatches = target ? [target, ...domainMatches.filter((item) => item !== target)] : domainMatches;
+  return visibleMatches.slice(0, 3).map((item) => {
     const fitReasons = [
       ...item.matched_skills.slice(0, 2).map((skill) => `已具备岗位要求：${skill}`),
       ...item.matched_soft_skills.slice(0, 1).map((skill) => `已具备软素质：${skill}`),
@@ -52,15 +68,18 @@ export function getCareerRecommendations(_profile?: UserProfile | null, matches:
     ];
     return {
       title: item.role_name,
-      match: item.score as number,
-      subtitle: '基于已填写画像与岗位标准',
-      reason: item.matched_skills.length
+      match: item.score,
+      domain: item.domain || 'technology',
+      domainLabel: item.domain_label || '技术与产品',
+      standardSource: item.standard_source,
+      subtitle: item.score === null ? '资料或标准依据不足，暂不评分' : '岗位标准覆盖参考',
+      reason: item.score === null ? item.evidence : item.matched_skills.length
         ? `已覆盖 ${item.matched_skills.length} 项核心岗位要求；仍有 ${item.missing_skills.length} 项待补齐。`
         : `当前未找到已掌握技能与该岗位核心要求的直接匹配；请核对画像或探索能力差距。`,
       fitReasons: fitReasons.length ? fitReasons : ['目前没有直接匹配的证据'],
       strengths: [...item.matched_skills, ...item.matched_soft_skills].slice(0, 3),
       gaps: [...item.missing_skills, ...item.missing_soft_skills].slice(0, 3),
-      nextAction: `生成 ${item.role_name} 学习路径`,
+      nextAction: `探索 ${item.role_name} 学习路径`,
       evidence: item.evidence
     } satisfies CareerRecommendation;
   });

@@ -16,6 +16,7 @@ import { useProfile } from '../hooks/useProfile';
 import { fetchRecommendations } from '../api/recommendations';
 import type { RoleMatch } from '../api/types';
 import { roleNamesMatch } from '../utils/careerPlan';
+import { StandardSourceNote } from '../components/StandardSourceNote';
 
 const { Dragger } = Upload;
 
@@ -49,7 +50,8 @@ export default function Profile() {
   const [syncing, setSyncing] = useState(false);
   const [roleMatches, setRoleMatches] = useState<RoleMatch[]>([]);
   const primaryRole = profile?.target_roles?.[0];
-  const primaryScore = roleMatches.find((item) => primaryRole && roleNamesMatch(item.role_name, primaryRole))?.score;
+  const primaryMatch = roleMatches.find((item) => primaryRole && roleNamesMatch(item.role_name, primaryRole));
+  const primaryScore = primaryMatch?.score;
 
   useEffect(() => {
     if (!profile) return;
@@ -93,7 +95,7 @@ export default function Profile() {
         content: (
           <div className="sync-modal-content">
             <Typography.Paragraph>{response.message}</Typography.Paragraph>
-            <Typography.Text strong>画像已更新，岗位匹配度将按当前标准重新计算。</Typography.Text>
+            <Typography.Text strong>画像已更新，岗位标准覆盖参考将按当前资料重新计算。</Typography.Text>
             <TagCloud title="新增技能" items={response.detected_updates.current_skills} color="cyan" />
             <TagCloud title="新增证书" items={response.detected_updates.certificates} color="gold" />
           </div>
@@ -118,7 +120,7 @@ export default function Profile() {
           </Tag>
           <Typography.Title>个人能力画像中心</Typography.Title>
           <Typography.Paragraph>
-            从简历、对话和测评中沉淀你的专业能力、目标岗位、项目证据与成长潜力，让 AI 推荐更精准。
+            从简历、对话和测评中整理能力、目标岗位与实践经历。标准覆盖参考只依据已填写内容，需要结合真实作品和经历核对。
           </Typography.Paragraph>
           <Space className="hero-actions" wrap>
             <Button type="primary" icon={<RadarChartOutlined />} onClick={() => navigate('/assessment')}>
@@ -131,7 +133,7 @@ export default function Profile() {
         </div>
         <div className="module-hero-stats">
           <div>
-            <span>目标岗位综合匹配度</span>
+            <span>目标岗位标准覆盖参考</span>
             <strong>{primaryScore === null || primaryScore === undefined ? '待补充' : `${primaryScore}%`}</strong>
           </div>
           <div>
@@ -170,6 +172,7 @@ export default function Profile() {
                 刷新个人画像
               </Button>
             </Space>
+            {primaryRole && <StandardSourceNote source={primaryMatch?.standard_source} notice={!primaryMatch ? '当前目标暂无可核对的岗位标准，暂不能评分；可到职业探索页选择领域。' : undefined} />}
           </Card>
         </Col>
         <Col xs={24} xl={15}>

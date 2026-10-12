@@ -1,0 +1,419 @@
+{
+  "schema_version": "1.0",
+  "version": "manual-pilot-2026-10-12-v2",
+  "domains": [
+    {
+      "id": "marketing_content",
+      "label": "市场与内容"
+    },
+    {
+      "id": "human_resources",
+      "label": "人力资源"
+    }
+  ],
+  "skill_ids": {
+    "市场调研": "pilot-skill-market-research",
+    "营销策划": "pilot-skill-marketing-planning",
+    "活动执行": "pilot-skill-event-support",
+    "文案写作": "pilot-skill-copywriting",
+    "电子表格": "pilot-skill-spreadsheets",
+    "效果评估": "pilot-skill-campaign-review",
+    "内容策划": "pilot-skill-content-planning",
+    "图文编辑": "pilot-skill-content-editing",
+    "内容合规": "pilot-skill-content-checking",
+    "用户反馈整理": "pilot-skill-feedback-collection",
+    "平台运营": "pilot-skill-channel-operations",
+    "社群运营": "pilot-skill-community-operations",
+    "岗位需求分析": "pilot-skill-hiring-requirements",
+    "招聘信息发布": "pilot-skill-job-posting",
+    "简历筛选": "pilot-skill-resume-screening",
+    "面试协调": "pilot-skill-interview-coordination",
+    "招聘数据整理": "pilot-skill-recruitment-records",
+    "员工资料管理": "pilot-skill-personnel-records",
+    "入转调离流程": "pilot-skill-personnel-processes",
+    "考勤数据整理": "pilot-skill-attendance-records",
+    "人事流程合规": "pilot-skill-personnel-checklists",
+    "员工服务沟通": "pilot-skill-employee-support",
+    "培训需求整理": "pilot-skill-training-needs",
+    "培训排期": "pilot-skill-training-scheduling",
+    "培训材料制作": "pilot-skill-training-materials",
+    "培训现场执行": "pilot-skill-training-event-support",
+    "培训反馈整理": "pilot-skill-training-feedback",
+    "沟通协调": "pilot-skill-communication",
+    "团队协作": "pilot-skill-teamwork",
+    "主动学习": "pilot-skill-self-learning",
+    "细致负责": "pilot-skill-attention-to-detail",
+    "保密意识": "pilot-skill-confidentiality"
+  },
+  "skill_aliases": {
+    "电子表格": [
+      "Excel",
+      "Microsoft Excel",
+      "WPS表格"
+    ],
+    "文案写作": [
+      "文案撰写"
+    ],
+    "内容策划": [
+      "选题策划"
+    ],
+    "图文编辑": [
+      "图文排版"
+    ],
+    "简历筛选": [
+      "简历初筛"
+    ],
+    "面试协调": [
+      "面试安排",
+      "面试邀约"
+    ],
+    "招聘数据整理": [
+      "招聘记录整理"
+    ],
+    "员工资料管理": [
+      "人事档案整理",
+      "员工信息维护"
+    ],
+    "培训反馈整理": [
+      "培训问卷整理"
+    ],
+    "团队协作": [
+      "团队合作"
+    ]
+  },
+  "roles": [
+    {
+      "role_id": "pilot-marketing-assistant",
+      "role_name": "市场助理",
+      "domain": "marketing_content",
+      "domain_label": "市场与内容",
+      "description": "协助收集市场信息、准备营销活动、整理传播材料与活动结果的入门角色试点。",
+      "core_skills": [
+        "市场调研",
+        "营销策划",
+        "活动执行",
+        "文案写作",
+        "电子表格",
+        "效果评估"
+      ],
+      "soft_skills": [
+        "沟通协调",
+        "团队协作",
+        "主动学习"
+      ],
+      "certifications": [],
+      "standard_source": {
+        "type": "manual_pilot",
+        "version": "manual-pilot-2026-10-12-v2",
+        "region": "中国大陆",
+        "review_status": "source_checked",
+        "reviewed_at": "2026-10-12",
+        "sources": [
+          {
+            "title": "教育部2025网络营销与直播电商专业教学标准（高职专科）",
+            "url": "https://www.moe.gov.cn/s78/A07/zcs_ztzl/2017_zt06/17zt06_bznr/bznr_zyjyzyjxbz/gdzyjy_zk/zk_cjsmdl/cjsmdl_dzswl/202502/P020250207542166351483.pdf",
+            "kind": "education_standard",
+            "published_at": "2025-02-11",
+            "evidence_location": "第4页市场策划、内容策划与编辑；第5页新媒体运营",
+            "accessed_at": "2026-10-11",
+            "access_status": "已读取教育部hudong同路径PDF全文"
+          }
+        ],
+        "limitations": [
+          "没有建立市场助理招聘样本集；活动执行为项目选择的助理任务，不表示可独立制定完整营销战略。",
+          "从公开资料选取并归纳的初级任务试点；未经过岗位从业者评审，不代表所有雇主或本科专业的要求。",
+          "教学标准为培养背景，雇主页面仅为任务例证；未导入招聘语料、统计需求频率或评价推荐准确率。",
+          "本角色尚无已核实的直接雇主任务页面；主要依据教学标准和项目对初级支持任务的拆分。"
+        ],
+        "tasks": [
+          "整理市场与竞品信息",
+          "协助营销活动策划及执行",
+          "整理活动反馈与效果记录"
+        ]
+      }
+    },
+    {
+      "role_id": "pilot-content-operations",
+      "role_name": "内容运营",
+      "domain": "marketing_content",
+      "domain_label": "市场与内容",
+      "description": "以选题、内容制作和发布、反馈收集与内容效果复盘为主的入门试点。",
+      "core_skills": [
+        "内容策划",
+        "文案写作",
+        "图文编辑",
+        "内容合规",
+        "用户反馈整理",
+        "效果评估"
+      ],
+      "soft_skills": [
+        "沟通协调",
+        "团队协作",
+        "主动学习"
+      ],
+      "certifications": [],
+      "standard_source": {
+        "type": "manual_pilot",
+        "version": "manual-pilot-2026-10-12-v2",
+        "region": "中国大陆",
+        "review_status": "source_checked",
+        "reviewed_at": "2026-10-12",
+        "sources": [
+          {
+            "title": "教育部2025网络营销与直播电商专业教学标准（高职专科）",
+            "url": "https://www.moe.gov.cn/s78/A07/zcs_ztzl/2017_zt06/17zt06_bznr/bznr_zyjyzyjxbz/gdzyjy_zk/zk_cjsmdl/cjsmdl_dzswl/202502/P020250207542166351483.pdf",
+            "kind": "education_standard",
+            "published_at": "2025-02-11",
+            "evidence_location": "第4页市场策划、内容策划与编辑；第5页新媒体运营",
+            "accessed_at": "2026-10-11",
+            "access_status": "已读取教育部hudong同路径PDF全文"
+          },
+          {
+            "title": "多少科技官网：内容运营实习生任务例证",
+            "url": "https://moreless.io/joinus",
+            "kind": "employer_example",
+            "published_at": null,
+            "evidence_location": "内容运营实习生段落：内容策划、维护、反馈与需求整理",
+            "accessed_at": "2026-10-11",
+            "access_status": "已读取官网正文；发布日期及当前在招状态未核实"
+          }
+        ],
+        "limitations": [
+          "不同产品的领域知识要求未统一建模；少量来源不证明能力清单代表全国岗位分布。",
+          "从公开资料选取并归纳的初级任务试点；未经过岗位从业者评审，不代表所有雇主或本科专业的要求。",
+          "教学标准为培养背景，雇主页面仅为任务例证；未导入招聘语料、统计需求频率或评价推荐准确率。"
+        ],
+        "tasks": [
+          "策划并编辑内容",
+          "选择渠道并维护内容发布",
+          "整理用户反馈和内容效果"
+        ]
+      }
+    },
+    {
+      "role_id": "pilot-new-media-operations",
+      "role_name": "新媒体运营",
+      "domain": "marketing_content",
+      "domain_label": "市场与内容",
+      "description": "协助内容平台账号、发布活动、用户互动和运营复盘的入门试点。",
+      "core_skills": [
+        "内容策划",
+        "平台运营",
+        "图文编辑",
+        "社群运营",
+        "活动执行",
+        "效果评估"
+      ],
+      "soft_skills": [
+        "沟通协调",
+        "团队协作",
+        "主动学习"
+      ],
+      "certifications": [],
+      "standard_source": {
+        "type": "manual_pilot",
+        "version": "manual-pilot-2026-10-12-v2",
+        "region": "中国大陆",
+        "review_status": "source_checked",
+        "reviewed_at": "2026-10-12",
+        "sources": [
+          {
+            "title": "教育部2025网络营销与直播电商专业教学标准（高职专科）",
+            "url": "https://www.moe.gov.cn/s78/A07/zcs_ztzl/2017_zt06/17zt06_bznr/bznr_zyjyzyjxbz/gdzyjy_zk/zk_cjsmdl/cjsmdl_dzswl/202502/P020250207542166351483.pdf",
+            "kind": "education_standard",
+            "published_at": "2025-02-11",
+            "evidence_location": "第4页市场策划、内容策划与编辑；第5页新媒体运营",
+            "accessed_at": "2026-10-11",
+            "access_status": "已读取教育部hudong同路径PDF全文"
+          },
+          {
+            "title": "美图官网：社区运营实习任务例证",
+            "url": "https://hr.meitu.com/en/jobIntern/67148428-1fc1-4e48-8d36-00bb1ee33826",
+            "kind": "employer_example",
+            "published_at": null,
+            "evidence_location": "岗位职责中的选题、发布复盘、活动、社群和反馈支持",
+            "accessed_at": "2026-10-11",
+            "access_status": "已读取官网正文；发布日期及当前在招状态未核实"
+          }
+        ],
+        "limitations": [
+          "内容运营与新媒体运营存在任务交叉，此处按内容生产与平台用户运营重点区分，不能认为互斥法定职业。",
+          "从公开资料选取并归纳的初级任务试点；未经过岗位从业者评审，不代表所有雇主或本科专业的要求。",
+          "教学标准为培养背景，雇主页面仅为任务例证；未导入招聘语料、统计需求频率或评价推荐准确率。"
+        ],
+        "tasks": [
+          "准备平台内容与发布计划",
+          "协助平台活动和社群互动",
+          "记录运营效果并提出改进"
+        ]
+      }
+    },
+    {
+      "role_id": "pilot-recruiting-assistant",
+      "role_name": "招聘助理",
+      "domain": "human_resources",
+      "domain_label": "人力资源",
+      "description": "协助理解岗位需求、发布岗位、筛选简历、协调面试和整理招聘记录的入门试点。",
+      "core_skills": [
+        "岗位需求分析",
+        "招聘信息发布",
+        "简历筛选",
+        "面试协调",
+        "招聘数据整理",
+        "电子表格"
+      ],
+      "soft_skills": [
+        "沟通协调",
+        "团队协作",
+        "细致负责"
+      ],
+      "certifications": [],
+      "standard_source": {
+        "type": "manual_pilot",
+        "version": "manual-pilot-2026-10-12-v2",
+        "region": "中国大陆",
+        "review_status": "source_checked",
+        "reviewed_at": "2026-10-12",
+        "sources": [
+          {
+            "title": "教育部2025人力资源管理专业教学标准（高职专科）",
+            "url": "https://www.moe.gov.cn/s78/A07/zcs_ztzl/2017_zt06/17zt06_bznr/bznr_zyjyzyjxbz/gdzyjy_zk/zk_ggglyfwdl/ggglyfwdl_gggll/202502/P020250207557906950427.pdf",
+            "kind": "education_standard",
+            "published_at": "2025-02-11",
+            "evidence_location": "第2页培养规格；第4页招聘与测评；第5页培训管理",
+            "accessed_at": "2026-10-11",
+            "access_status": "已读取相关PDF正文"
+          },
+          {
+            "title": "美图官网：招聘实习任务例证",
+            "url": "https://hr.meitu.com/en/jobSocial/3e3010d0-840c-4c72-a4e2-134a6e75833e",
+            "kind": "employer_example",
+            "published_at": null,
+            "evidence_location": "招聘需求理解、候选人联系、渠道和面试安排",
+            "accessed_at": "2026-10-11",
+            "access_status": "已读取官网正文；发布日期及当前在招状态未核实"
+          }
+        ],
+        "limitations": [
+          "不声称助理可独立做专业测评或录用决策；英语仅为特定国际招聘岗位条件。",
+          "从公开资料选取并归纳的初级任务试点；未经过岗位从业者评审，不代表所有雇主或本科专业的要求。",
+          "教学标准为培养背景，雇主页面仅为任务例证；未导入招聘语料、统计需求频率或评价推荐准确率。"
+        ],
+        "tasks": [
+          "整理岗位需求及候选人材料",
+          "维护招聘渠道与协调面试",
+          "记录招聘进度和结果"
+        ]
+      }
+    },
+    {
+      "role_id": "pilot-personnel-assistant",
+      "role_name": "人事助理",
+      "domain": "human_resources",
+      "domain_label": "人力资源",
+      "description": "在指导下支持员工资料、入转调离流程与日常员工服务记录的入门试点。",
+      "core_skills": [
+        "员工资料管理",
+        "入转调离流程",
+        "考勤数据整理",
+        "人事流程合规",
+        "员工服务沟通",
+        "电子表格"
+      ],
+      "soft_skills": [
+        "细致负责",
+        "沟通协调",
+        "保密意识"
+      ],
+      "certifications": [],
+      "standard_source": {
+        "type": "manual_pilot",
+        "version": "manual-pilot-2026-10-12-v2",
+        "region": "中国大陆",
+        "review_status": "source_checked",
+        "reviewed_at": "2026-10-12",
+        "sources": [
+          {
+            "title": "教育部2025人力资源管理专业教学标准（高职专科）",
+            "url": "https://www.moe.gov.cn/s78/A07/zcs_ztzl/2017_zt06/17zt06_bznr/bznr_zyjyzyjxbz/gdzyjy_zk/zk_ggglyfwdl/ggglyfwdl_gggll/202502/P020250207557906950427.pdf",
+            "kind": "education_standard",
+            "published_at": "2025-02-11",
+            "evidence_location": "第2页培养规格；第4页招聘与测评；第5页培训管理",
+            "accessed_at": "2026-10-11",
+            "access_status": "已读取相关PDF正文"
+          }
+        ],
+        "limitations": [
+          "六项为人工拆分的事务支持范围；不提供劳动争议、薪资税费、社保政策结论，不表示可独立履行法律专业责任。",
+          "从公开资料选取并归纳的初级任务试点；未经过岗位从业者评审，不代表所有雇主或本科专业的要求。",
+          "教学标准为培养背景，雇主页面仅为任务例证；未导入招聘语料、统计需求频率或评价推荐准确率。",
+          "本角色尚无已核实的直接雇主任务页面；主要依据教学标准和项目对初级支持任务的拆分。"
+        ],
+        "tasks": [
+          "整理员工资料和流程记录",
+          "协助入转调离事务",
+          "核对基础考勤与员工服务信息"
+        ]
+      }
+    },
+    {
+      "role_id": "pilot-training-assistant",
+      "role_name": "培训助理",
+      "domain": "human_resources",
+      "domain_label": "人力资源",
+      "description": "协助企业培训的需求整理、排期材料、现场协调和反馈统计的入门试点。",
+      "core_skills": [
+        "培训需求整理",
+        "培训排期",
+        "培训材料制作",
+        "培训现场执行",
+        "培训反馈整理",
+        "电子表格"
+      ],
+      "soft_skills": [
+        "沟通协调",
+        "团队协作",
+        "细致负责"
+      ],
+      "certifications": [],
+      "standard_source": {
+        "type": "manual_pilot",
+        "version": "manual-pilot-2026-10-12-v2",
+        "region": "中国大陆",
+        "review_status": "source_checked",
+        "reviewed_at": "2026-10-12",
+        "sources": [
+          {
+            "title": "教育部2025人力资源管理专业教学标准（高职专科）",
+            "url": "https://www.moe.gov.cn/s78/A07/zcs_ztzl/2017_zt06/17zt06_bznr/bznr_zyjyzyjxbz/gdzyjy_zk/zk_ggglyfwdl/ggglyfwdl_gggll/202502/P020250207557906950427.pdf",
+            "kind": "education_standard",
+            "published_at": "2025-02-11",
+            "evidence_location": "第2页培养规格；第4页招聘与测评；第5页培训管理",
+            "accessed_at": "2026-10-11",
+            "access_status": "已读取相关PDF正文"
+          },
+          {
+            "title": "美图：HRBP实习任务中的培训组织支持例证",
+            "url": "https://hr.meitu.com/en/jobIntern/15c51fca-8baa-4bd5-a891-8df4e98cceff",
+            "kind": "employer_example",
+            "published_at": null,
+            "evidence_location": "岗位职责第3项：培训组织支持；仅核对该支持任务，不扩展为培训课程设计或效果保证",
+            "accessed_at": "2026-10-12",
+            "access_status": "已读取雇主页面岗位职责正文"
+          }
+        ],
+        "limitations": [
+          "属于企业培训支持，非学校教师；不声称培训成果可因果归因，也不要求教师资格证。",
+          "从公开资料选取并归纳的初级任务试点；未经过岗位从业者评审，不代表所有雇主或本科专业的要求。",
+          "教学标准为培养背景，雇主页面仅为任务例证；未导入招聘语料、统计需求频率或评价推荐准确率。",
+          "雇主例证来自HRBP实习职责中的一项培训支持任务，不是独立培训岗位的全套能力依据；具体拆分仍主要依据教学标准。"
+        ],
+        "tasks": [
+          "整理培训需求及排期",
+          "准备培训材料和签到记录",
+          "组织现场支持并整理反馈"
+        ]
+      }
+    }
+  ]
+}

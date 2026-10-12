@@ -105,6 +105,44 @@ export interface GapAnalysisResponse {
   missing_requirements?: string[];
   skill_coverage: number;
   soft_skill_coverage: number | null;
+  standard_source?: StandardSource | null;
+}
+
+export interface StandardSource {
+  type: 'manual_pilot' | 'demo_example' | 'legacy_unverified';
+  review_status: 'source_checked' | 'modified_unverified' | 'unverified';
+  version: string | null;
+  region: string;
+  reviewed_at?: string | null;
+  sources: {
+    title: string;
+    url: string;
+    kind: 'education_standard' | 'employer_example';
+    published_at?: string | null;
+    evidence_location?: string | null;
+    accessed_at?: string | null;
+    access_status?: string | null;
+  }[];
+  limitations: string[];
+  tasks: string[];
+}
+
+export interface CareerCatalogRole {
+  role_id: string;
+  role_name: string;
+  domain: string;
+  domain_label: string;
+  description: string;
+  core_skills: string[];
+  soft_skills: string[];
+  standard_source: StandardSource | null;
+}
+
+export interface CareerCatalog {
+  domains: { id: string; label: string }[];
+  roles: CareerCatalogRole[];
+  skills: { id: string; label: string; aliases: string[] }[];
+  scoring_note: string;
 }
 
 export interface RoleMatch {
@@ -117,6 +155,10 @@ export interface RoleMatch {
   target_preference: boolean;
   interest_relevant: boolean;
   evidence: string;
+  role_id?: string;
+  domain?: string;
+  domain_label?: string;
+  standard_source?: StandardSource | null;
 }
 
 export interface LearningMilestone {
@@ -134,6 +176,8 @@ export interface LearningPathResponse {
   summary: string;
   milestones: LearningMilestone[];
   conclusion: string;
+  standard_source?: StandardSource | null;
+  standard_notice?: string;
 }
 
 export interface JobItem {

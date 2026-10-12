@@ -1,0 +1,1556 @@
+{
+  "started_at": "2026-10-12T15:42:33+08:00",
+  "finished_at": "2026-10-12T15:43:29+08:00",
+  "status": "passed",
+  "base_url": "http://127.0.0.1:8013",
+  "http_timeout_seconds": 220.0,
+  "backend_ai_timeout_seconds": 60.0,
+  "backend_timeout_evidence": "Operator-supplied runtime configuration, not measured by the API client.",
+  "configured_model": "glm-4-flash",
+  "model_evidence": "Model configuration supplied by the operator for this backend; this API does not expose the provider response model metadata.",
+  "environment": {
+    "python": "3.13.3",
+    "httpx": "0.28.1",
+    "verifier_sha256": "4ab95da96756484a1bff0382d0b4c525ca9c8808ed238fc0b73040c984f27392"
+  },
+  "evidence_boundary": [
+    "Only synthetic profiles and isolated local service accounts are used.",
+    "No API key, bearer token, account password, or .env content is saved.",
+    "Real API/model integration is checked; recommendation accuracy and generated advice quality are not measured.",
+    "Each case uses four AI HTTP endpoints without client retries; learning-path has two model calls and gap may retry once on malformed output. SDK transport retries/fallback are not observable here.",
+    "Generated plans, resources and advice require manual review; no quality or hiring-effect claim follows from passing HTTP checks."
+  ],
+  "catalog": {
+    "domains": [
+      {
+        "id": "technology",
+        "label": "技术与产品"
+      },
+      {
+        "id": "human_resources",
+        "label": "人力资源"
+      },
+      {
+        "id": "marketing_content",
+        "label": "市场与内容"
+      }
+    ],
+    "roles": [
+      {
+        "role_id": "demo_example-dbd37ab81a19",
+        "domain": "technology",
+        "domain_label": "技术与产品",
+        "standard_source": {
+          "type": "demo_example",
+          "version": null,
+          "region": "未核实",
+          "review_status": "unverified",
+          "reviewed_at": null,
+          "sources": [],
+          "limitations": [
+            "本标准为公开运行示例，未由招聘样本统计得出，不代表真实招聘要求或效果验证。"
+          ],
+          "tasks": []
+        },
+        "role_name": "Java 后端开发工程师",
+        "description": "演示用岗位标准：负责服务端接口、数据持久化与系统稳定性。",
+        "core_skills": [
+          "Java",
+          "Spring Boot",
+          "SQL",
+          "REST API",
+          "Git"
+        ],
+        "soft_skills": [
+          "团队协作",
+          "问题分析"
+        ]
+      },
+      {
+        "role_id": "demo_example-0dba913873a0",
+        "domain": "technology",
+        "domain_label": "技术与产品",
+        "standard_source": {
+          "type": "demo_example",
+          "version": null,
+          "region": "未核实",
+          "review_status": "unverified",
+          "reviewed_at": null,
+          "sources": [],
+          "limitations": [
+            "本标准为公开运行示例，未由招聘样本统计得出，不代表真实招聘要求或效果验证。"
+          ],
+          "tasks": []
+        },
+        "role_name": "产品经理",
+        "description": "演示用岗位标准：负责需求分析、产品规划与跨团队协作。",
+        "core_skills": [
+          "需求分析",
+          "原型设计",
+          "用户研究",
+          "数据分析",
+          "项目管理"
+        ],
+        "soft_skills": [
+          "沟通表达",
+          "团队协作"
+        ]
+      },
+      {
+        "role_id": "pilot-personnel-assistant",
+        "domain": "human_resources",
+        "domain_label": "人力资源",
+        "standard_source": {
+          "type": "manual_pilot",
+          "version": "manual-pilot-2026-10-12-v2",
+          "region": "中国大陆",
+          "review_status": "source_checked",
+          "reviewed_at": "2026-10-12",
+          "sources": [
+            {
+              "title": "教育部2025人力资源管理专业教学标准（高职专科）",
+              "url": "https://www.moe.gov.cn/s78/A07/zcs_ztzl/2017_zt06/17zt06_bznr/bznr_zyjyzyjxbz/gdzyjy_zk/zk_ggglyfwdl/ggglyfwdl_gggll/202502/P020250207557906950427.pdf",
+              "kind": "education_standard",
+              "published_at": "2025-02-11",
+              "evidence_location": "第2页培养规格；第4页招聘与测评；第5页培训管理",
+              "accessed_at": "2026-10-11",
+              "access_status": "已读取相关PDF正文"
+            }
+          ],
+          "limitations": [
+            "六项为人工拆分的事务支持范围；不提供劳动争议、薪资税费、社保政策结论，不表示可独立履行法律专业责任。",
+            "从公开资料选取并归纳的初级任务试点；未经过岗位从业者评审，不代表所有雇主或本科专业的要求。",
+            "教学标准为培养背景，雇主页面仅为任务例证；未导入招聘语料、统计需求频率或评价推荐准确率。",
+            "本角色尚无已核实的直接雇主任务页面；主要依据教学标准和项目对初级支持任务的拆分。"
+          ],
+          "tasks": [
+            "整理员工资料和流程记录",
+            "协助入转调离事务",
+            "核对基础考勤与员工服务信息"
+          ]
+        },
+        "role_name": "人事助理",
+        "description": "在指导下支持员工资料、入转调离流程与日常员工服务记录的入门试点。",
+        "core_skills": [
+          "员工资料管理",
+          "入转调离流程",
+          "考勤数据整理",
+          "人事流程合规",
+          "员工服务沟通",
+          "电子表格"
+        ],
+        "soft_skills": [
+          "细致负责",
+          "沟通协调",
+          "保密意识"
+        ]
+      },
+      {
+        "role_id": "pilot-content-operations",
+        "domain": "marketing_content",
+        "domain_label": "市场与内容",
+        "standard_source": {
+          "type": "manual_pilot",
+          "version": "manual-pilot-2026-10-12-v2",
+          "region": "中国大陆",
+          "review_status": "source_checked",
+          "reviewed_at": "2026-10-12",
+          "sources": [
+            {
+              "title": "教育部2025网络营销与直播电商专业教学标准（高职专科）",
+              "url": "https://www.moe.gov.cn/s78/A07/zcs_ztzl/2017_zt06/17zt06_bznr/bznr_zyjyzyjxbz/gdzyjy_zk/zk_cjsmdl/cjsmdl_dzswl/202502/P020250207542166351483.pdf",
+              "kind": "education_standard",
+              "published_at": "2025-02-11",
+              "evidence_location": "第4页市场策划、内容策划与编辑；第5页新媒体运营",
+              "accessed_at": "2026-10-11",
+              "access_status": "已读取教育部hudong同路径PDF全文"
+            },
+            {
+              "title": "多少科技官网：内容运营实习生任务例证",
+              "url": "https://moreless.io/joinus",
+              "kind": "employer_example",
+              "published_at": null,
+              "evidence_location": "内容运营实习生段落：内容策划、维护、反馈与需求整理",
+              "accessed_at": "2026-10-11",
+              "access_status": "已读取官网正文；发布日期及当前在招状态未核实"
+            }
+          ],
+          "limitations": [
+            "不同产品的领域知识要求未统一建模；少量来源不证明能力清单代表全国岗位分布。",
+            "从公开资料选取并归纳的初级任务试点；未经过岗位从业者评审，不代表所有雇主或本科专业的要求。",
+            "教学标准为培养背景，雇主页面仅为任务例证；未导入招聘语料、统计需求频率或评价推荐准确率。"
+          ],
+          "tasks": [
+            "策划并编辑内容",
+            "选择渠道并维护内容发布",
+            "整理用户反馈和内容效果"
+          ]
+        },
+        "role_name": "内容运营",
+        "description": "以选题、内容制作和发布、反馈收集与内容效果复盘为主的入门试点。",
+        "core_skills": [
+          "内容策划",
+          "文案写作",
+          "图文编辑",
+          "内容合规",
+          "用户反馈整理",
+          "效果评估"
+        ],
+        "soft_skills": [
+          "沟通协调",
+          "团队协作",
+          "主动学习"
+        ]
+      },
+      {
+        "role_id": "demo_example-b0788e753b91",
+        "domain": "technology",
+        "domain_label": "技术与产品",
+        "standard_source": {
+          "type": "demo_example",
+          "version": null,
+          "region": "未核实",
+          "review_status": "unverified",
+          "reviewed_at": null,
+          "sources": [],
+          "limitations": [
+            "本标准为公开运行示例，未由招聘样本统计得出，不代表真实招聘要求或效果验证。"
+          ],
+          "tasks": []
+        },
+        "role_name": "前端开发工程师",
+        "description": "演示用岗位标准：负责 Web 界面开发、组件维护与交互体验优化。",
+        "core_skills": [
+          "HTML/CSS",
+          "JavaScript",
+          "React",
+          "TypeScript",
+          "Git"
+        ],
+        "soft_skills": [
+          "团队协作",
+          "问题分析"
+        ]
+      },
+      {
+        "role_id": "pilot-training-assistant",
+        "domain": "human_resources",
+        "domain_label": "人力资源",
+        "standard_source": {
+          "type": "manual_pilot",
+          "version": "manual-pilot-2026-10-12-v2",
+          "region": "中国大陆",
+          "review_status": "source_checked",
+          "reviewed_at": "2026-10-12",
+          "sources": [
+            {
+              "title": "教育部2025人力资源管理专业教学标准（高职专科）",
+              "url": "https://www.moe.gov.cn/s78/A07/zcs_ztzl/2017_zt06/17zt06_bznr/bznr_zyjyzyjxbz/gdzyjy_zk/zk_ggglyfwdl/ggglyfwdl_gggll/202502/P020250207557906950427.pdf",
+              "kind": "education_standard",
+              "published_at": "2025-02-11",
+              "evidence_location": "第2页培养规格；第4页招聘与测评；第5页培训管理",
+              "accessed_at": "2026-10-11",
+              "access_status": "已读取相关PDF正文"
+            },
+            {
+              "title": "美图：HRBP实习任务中的培训组织支持例证",
+              "url": "https://hr.meitu.com/en/jobIntern/15c51fca-8baa-4bd5-a891-8df4e98cceff",
+              "kind": "employer_example",
+              "published_at": null,
+              "evidence_location": "岗位职责第3项：培训组织支持；仅核对该支持任务，不扩展为培训课程设计或效果保证",
+              "accessed_at": "2026-10-12",
+              "access_status": "已读取雇主页面岗位职责正文"
+            }
+          ],
+          "limitations": [
+            "属于企业培训支持，非学校教师；不声称培训成果可因果归因，也不要求教师资格证。",
+            "从公开资料选取并归纳的初级任务试点；未经过岗位从业者评审，不代表所有雇主或本科专业的要求。",
+            "教学标准为培养背景，雇主页面仅为任务例证；未导入招聘语料、统计需求频率或评价推荐准确率。",
+            "雇主例证来自HRBP实习职责中的一项培训支持任务，不是独立培训岗位的全套能力依据；具体拆分仍主要依据教学标准。"
+          ],
+          "tasks": [
+            "整理培训需求及排期",
+            "准备培训材料和签到记录",
+            "组织现场支持并整理反馈"
+          ]
+        },
+        "role_name": "培训助理",
+        "description": "协助企业培训的需求整理、排期材料、现场协调和反馈统计的入门试点。",
+        "core_skills": [
+          "培训需求整理",
+          "培训排期",
+          "培训材料制作",
+          "培训现场执行",
+          "培训反馈整理",
+          "电子表格"
+        ],
+        "soft_skills": [
+          "沟通协调",
+          "团队协作",
+          "细致负责"
+        ]
+      },
+      {
+        "role_id": "pilot-marketing-assistant",
+        "domain": "marketing_content",
+        "domain_label": "市场与内容",
+        "standard_source": {
+          "type": "manual_pilot",
+          "version": "manual-pilot-2026-10-12-v2",
+          "region": "中国大陆",
+          "review_status": "source_checked",
+          "reviewed_at": "2026-10-12",
+          "sources": [
+            {
+              "title": "教育部2025网络营销与直播电商专业教学标准（高职专科）",
+              "url": "https://www.moe.gov.cn/s78/A07/zcs_ztzl/2017_zt06/17zt06_bznr/bznr_zyjyzyjxbz/gdzyjy_zk/zk_cjsmdl/cjsmdl_dzswl/202502/P020250207542166351483.pdf",
+              "kind": "education_standard",
+              "published_at": "2025-02-11",
+              "evidence_location": "第4页市场策划、内容策划与编辑；第5页新媒体运营",
+              "accessed_at": "2026-10-11",
+              "access_status": "已读取教育部hudong同路径PDF全文"
+            }
+          ],
+          "limitations": [
+            "没有建立市场助理招聘样本集；活动执行为项目选择的助理任务，不表示可独立制定完整营销战略。",
+            "从公开资料选取并归纳的初级任务试点；未经过岗位从业者评审，不代表所有雇主或本科专业的要求。",
+            "教学标准为培养背景，雇主页面仅为任务例证；未导入招聘语料、统计需求频率或评价推荐准确率。",
+            "本角色尚无已核实的直接雇主任务页面；主要依据教学标准和项目对初级支持任务的拆分。"
+          ],
+          "tasks": [
+            "整理市场与竞品信息",
+            "协助营销活动策划及执行",
+            "整理活动反馈与效果记录"
+          ]
+        },
+        "role_name": "市场助理",
+        "description": "协助收集市场信息、准备营销活动、整理传播材料与活动结果的入门角色试点。",
+        "core_skills": [
+          "市场调研",
+          "营销策划",
+          "活动执行",
+          "文案写作",
+          "电子表格",
+          "效果评估"
+        ],
+        "soft_skills": [
+          "沟通协调",
+          "团队协作",
+          "主动学习"
+        ]
+      },
+      {
+        "role_id": "pilot-recruiting-assistant",
+        "domain": "human_resources",
+        "domain_label": "人力资源",
+        "standard_source": {
+          "type": "manual_pilot",
+          "version": "manual-pilot-2026-10-12-v2",
+          "region": "中国大陆",
+          "review_status": "source_checked",
+          "reviewed_at": "2026-10-12",
+          "sources": [
+            {
+              "title": "教育部2025人力资源管理专业教学标准（高职专科）",
+              "url": "https://www.moe.gov.cn/s78/A07/zcs_ztzl/2017_zt06/17zt06_bznr/bznr_zyjyzyjxbz/gdzyjy_zk/zk_ggglyfwdl/ggglyfwdl_gggll/202502/P020250207557906950427.pdf",
+              "kind": "education_standard",
+              "published_at": "2025-02-11",
+              "evidence_location": "第2页培养规格；第4页招聘与测评；第5页培训管理",
+              "accessed_at": "2026-10-11",
+              "access_status": "已读取相关PDF正文"
+            },
+            {
+              "title": "美图官网：招聘实习任务例证",
+              "url": "https://hr.meitu.com/en/jobSocial/3e3010d0-840c-4c72-a4e2-134a6e75833e",
+              "kind": "employer_example",
+              "published_at": null,
+              "evidence_location": "招聘需求理解、候选人联系、渠道和面试安排",
+              "accessed_at": "2026-10-11",
+              "access_status": "已读取官网正文；发布日期及当前在招状态未核实"
+            }
+          ],
+          "limitations": [
+            "不声称助理可独立做专业测评或录用决策；英语仅为特定国际招聘岗位条件。",
+            "从公开资料选取并归纳的初级任务试点；未经过岗位从业者评审，不代表所有雇主或本科专业的要求。",
+            "教学标准为培养背景，雇主页面仅为任务例证；未导入招聘语料、统计需求频率或评价推荐准确率。"
+          ],
+          "tasks": [
+            "整理岗位需求及候选人材料",
+            "维护招聘渠道与协调面试",
+            "记录招聘进度和结果"
+          ]
+        },
+        "role_name": "招聘助理",
+        "description": "协助理解岗位需求、发布岗位、筛选简历、协调面试和整理招聘记录的入门试点。",
+        "core_skills": [
+          "岗位需求分析",
+          "招聘信息发布",
+          "简历筛选",
+          "面试协调",
+          "招聘数据整理",
+          "电子表格"
+        ],
+        "soft_skills": [
+          "沟通协调",
+          "团队协作",
+          "细致负责"
+        ]
+      },
+      {
+        "role_id": "demo_example-32f619c0fc80",
+        "domain": "technology",
+        "domain_label": "技术与产品",
+        "standard_source": {
+          "type": "demo_example",
+          "version": null,
+          "region": "未核实",
+          "review_status": "unverified",
+          "reviewed_at": null,
+          "sources": [],
+          "limitations": [
+            "本标准为公开运行示例，未由招聘样本统计得出，不代表真实招聘要求或效果验证。"
+          ],
+          "tasks": []
+        },
+        "role_name": "数据分析师",
+        "description": "演示用岗位标准：负责数据清洗、指标分析和可视化表达。",
+        "core_skills": [
+          "SQL",
+          "Python",
+          "数据清洗",
+          "统计分析",
+          "数据可视化"
+        ],
+        "soft_skills": [
+          "沟通表达",
+          "问题分析"
+        ]
+      },
+      {
+        "role_id": "pilot-new-media-operations",
+        "domain": "marketing_content",
+        "domain_label": "市场与内容",
+        "standard_source": {
+          "type": "manual_pilot",
+          "version": "manual-pilot-2026-10-12-v2",
+          "region": "中国大陆",
+          "review_status": "source_checked",
+          "reviewed_at": "2026-10-12",
+          "sources": [
+            {
+              "title": "教育部2025网络营销与直播电商专业教学标准（高职专科）",
+              "url": "https://www.moe.gov.cn/s78/A07/zcs_ztzl/2017_zt06/17zt06_bznr/bznr_zyjyzyjxbz/gdzyjy_zk/zk_cjsmdl/cjsmdl_dzswl/202502/P020250207542166351483.pdf",
+              "kind": "education_standard",
+              "published_at": "2025-02-11",
+              "evidence_location": "第4页市场策划、内容策划与编辑；第5页新媒体运营",
+              "accessed_at": "2026-10-11",
+              "access_status": "已读取教育部hudong同路径PDF全文"
+            },
+            {
+              "title": "美图官网：社区运营实习任务例证",
+              "url": "https://hr.meitu.com/en/jobIntern/67148428-1fc1-4e48-8d36-00bb1ee33826",
+              "kind": "employer_example",
+              "published_at": null,
+              "evidence_location": "岗位职责中的选题、发布复盘、活动、社群和反馈支持",
+              "accessed_at": "2026-10-11",
+              "access_status": "已读取官网正文；发布日期及当前在招状态未核实"
+            }
+          ],
+          "limitations": [
+            "内容运营与新媒体运营存在任务交叉，此处按内容生产与平台用户运营重点区分，不能认为互斥法定职业。",
+            "从公开资料选取并归纳的初级任务试点；未经过岗位从业者评审，不代表所有雇主或本科专业的要求。",
+            "教学标准为培养背景，雇主页面仅为任务例证；未导入招聘语料、统计需求频率或评价推荐准确率。"
+          ],
+          "tasks": [
+            "准备平台内容与发布计划",
+            "协助平台活动和社群互动",
+            "记录运营效果并提出改进"
+          ]
+        },
+        "role_name": "新媒体运营",
+        "description": "协助内容平台账号、发布活动、用户互动和运营复盘的入门试点。",
+        "core_skills": [
+          "内容策划",
+          "平台运营",
+          "图文编辑",
+          "社群运营",
+          "活动执行",
+          "效果评估"
+        ],
+        "soft_skills": [
+          "沟通协调",
+          "团队协作",
+          "主动学习"
+        ]
+      }
+    ],
+    "skills": [
+      {
+        "id": "pilot-skill-market-research",
+        "label": "市场调研",
+        "aliases": []
+      },
+      {
+        "id": "pilot-skill-marketing-planning",
+        "label": "营销策划",
+        "aliases": []
+      },
+      {
+        "id": "pilot-skill-event-support",
+        "label": "活动执行",
+        "aliases": []
+      },
+      {
+        "id": "pilot-skill-copywriting",
+        "label": "文案写作",
+        "aliases": [
+          "文案撰写"
+        ]
+      },
+      {
+        "id": "pilot-skill-spreadsheets",
+        "label": "电子表格",
+        "aliases": [
+          "Excel",
+          "Microsoft Excel",
+          "WPS表格"
+        ]
+      },
+      {
+        "id": "pilot-skill-campaign-review",
+        "label": "效果评估",
+        "aliases": []
+      },
+      {
+        "id": "pilot-skill-content-planning",
+        "label": "内容策划",
+        "aliases": [
+          "选题策划"
+        ]
+      },
+      {
+        "id": "pilot-skill-content-editing",
+        "label": "图文编辑",
+        "aliases": [
+          "图文排版"
+        ]
+      },
+      {
+        "id": "pilot-skill-content-checking",
+        "label": "内容合规",
+        "aliases": []
+      },
+      {
+        "id": "pilot-skill-feedback-collection",
+        "label": "用户反馈整理",
+        "aliases": []
+      },
+      {
+        "id": "pilot-skill-channel-operations",
+        "label": "平台运营",
+        "aliases": []
+      },
+      {
+        "id": "pilot-skill-community-operations",
+        "label": "社群运营",
+        "aliases": []
+      },
+      {
+        "id": "pilot-skill-hiring-requirements",
+        "label": "岗位需求分析",
+        "aliases": []
+      },
+      {
+        "id": "pilot-skill-job-posting",
+        "label": "招聘信息发布",
+        "aliases": []
+      },
+      {
+        "id": "pilot-skill-resume-screening",
+        "label": "简历筛选",
+        "aliases": [
+          "简历初筛"
+        ]
+      },
+      {
+        "id": "pilot-skill-interview-coordination",
+        "label": "面试协调",
+        "aliases": [
+          "面试安排",
+          "面试邀约"
+        ]
+      },
+      {
+        "id": "pilot-skill-recruitment-records",
+        "label": "招聘数据整理",
+        "aliases": [
+          "招聘记录整理"
+        ]
+      },
+      {
+        "id": "pilot-skill-personnel-records",
+        "label": "员工资料管理",
+        "aliases": [
+          "人事档案整理",
+          "员工信息维护"
+        ]
+      },
+      {
+        "id": "pilot-skill-personnel-processes",
+        "label": "入转调离流程",
+        "aliases": []
+      },
+      {
+        "id": "pilot-skill-attendance-records",
+        "label": "考勤数据整理",
+        "aliases": []
+      },
+      {
+        "id": "pilot-skill-personnel-checklists",
+        "label": "人事流程合规",
+        "aliases": []
+      },
+      {
+        "id": "pilot-skill-employee-support",
+        "label": "员工服务沟通",
+        "aliases": []
+      },
+      {
+        "id": "pilot-skill-training-needs",
+        "label": "培训需求整理",
+        "aliases": []
+      },
+      {
+        "id": "pilot-skill-training-scheduling",
+        "label": "培训排期",
+        "aliases": []
+      },
+      {
+        "id": "pilot-skill-training-materials",
+        "label": "培训材料制作",
+        "aliases": []
+      },
+      {
+        "id": "pilot-skill-training-event-support",
+        "label": "培训现场执行",
+        "aliases": []
+      },
+      {
+        "id": "pilot-skill-training-feedback",
+        "label": "培训反馈整理",
+        "aliases": [
+          "培训问卷整理"
+        ]
+      },
+      {
+        "id": "pilot-skill-communication",
+        "label": "沟通协调",
+        "aliases": []
+      },
+      {
+        "id": "pilot-skill-teamwork",
+        "label": "团队协作",
+        "aliases": [
+          "团队合作"
+        ]
+      },
+      {
+        "id": "pilot-skill-self-learning",
+        "label": "主动学习",
+        "aliases": []
+      },
+      {
+        "id": "pilot-skill-attention-to-detail",
+        "label": "细致负责",
+        "aliases": []
+      },
+      {
+        "id": "pilot-skill-confidentiality",
+        "label": "保密意识",
+        "aliases": []
+      }
+    ],
+    "scoring_note": "先选择领域和目标，再核对该标准的能力差距；不同岗位的标准粒度不同，百分比不能表示统一职业适合度。"
+  },
+  "cases": [
+    {
+      "domain": "marketing_content",
+      "target_role": "新媒体运营",
+      "synthetic_assessment": {
+        "name": "合成试点同学",
+        "education_level": "本科",
+        "major": "市场营销",
+        "grade": "大三",
+        "location": "中国大陆",
+        "current_skills": [
+          "内容策划",
+          "平台运营"
+        ],
+        "soft_skills": [
+          "团队合作"
+        ],
+        "certificates": [],
+        "target_roles": [
+          "新媒体运营"
+        ],
+        "interests": [],
+        "internship_experience": "仅在虚构课程材料中练习已填报的两项技能，没有真实雇主、候选人或导师可参与。",
+        "weekly_learning_time": "每周 6-10 小时"
+      },
+      "status": "passed",
+      "steps": [
+        {
+          "name": "register",
+          "method": "POST",
+          "path": "/api/auth/register",
+          "started_at": "2026-10-12T15:42:33+08:00",
+          "status": "passed",
+          "http_status": 200,
+          "duration_seconds": 0.224
+        },
+        {
+          "name": "login",
+          "method": "POST",
+          "path": "/api/auth/login",
+          "started_at": "2026-10-12T15:42:33+08:00",
+          "status": "passed",
+          "http_status": 200,
+          "duration_seconds": 0.221
+        },
+        {
+          "name": "extract_profile",
+          "method": "POST",
+          "path": "/api/user/profile/extract",
+          "started_at": "2026-10-12T15:42:33+08:00",
+          "status": "passed",
+          "http_status": 200,
+          "duration_seconds": 6.136
+        },
+        {
+          "name": "restore_profile",
+          "method": "GET",
+          "path": "/api/profile/me",
+          "started_at": "2026-10-12T15:42:40+08:00",
+          "status": "passed",
+          "http_status": 200,
+          "duration_seconds": 0.003
+        },
+        {
+          "name": "domain_recommendations",
+          "method": "GET",
+          "path": "/api/recommendations",
+          "started_at": "2026-10-12T15:42:40+08:00",
+          "status": "passed",
+          "http_status": 200,
+          "duration_seconds": 0.008
+        },
+        {
+          "name": "gap_analysis",
+          "method": "POST",
+          "path": "/api/agent/gap-analysis",
+          "started_at": "2026-10-12T15:42:40+08:00",
+          "status": "passed",
+          "http_status": 200,
+          "duration_seconds": 13.073
+        },
+        {
+          "name": "generate_roadmap",
+          "method": "POST",
+          "path": "/api/agent/learning-path",
+          "started_at": "2026-10-12T15:42:53+08:00",
+          "status": "passed",
+          "http_status": 200,
+          "duration_seconds": 29.578
+        },
+        {
+          "name": "restore_saved_roadmap",
+          "method": "GET",
+          "path": "/api/history/roadmaps/6",
+          "started_at": "2026-10-12T15:43:22+08:00",
+          "status": "passed",
+          "http_status": 200,
+          "duration_seconds": 0.005
+        },
+        {
+          "name": "save_task_progress",
+          "method": "PUT",
+          "path": "/api/history/roadmaps/6/progress",
+          "started_at": "2026-10-12T15:43:22+08:00",
+          "status": "passed",
+          "http_status": 200,
+          "duration_seconds": 0.01
+        },
+        {
+          "name": "restore_task_progress",
+          "method": "GET",
+          "path": "/api/history/roadmaps/6",
+          "started_at": "2026-10-12T15:43:22+08:00",
+          "status": "passed",
+          "http_status": 200,
+          "duration_seconds": 0.004
+        },
+        {
+          "name": "create_bound_session",
+          "method": "POST",
+          "path": "/api/chat/sessions",
+          "started_at": "2026-10-12T15:43:22+08:00",
+          "status": "passed",
+          "http_status": 200,
+          "duration_seconds": 0.012
+        },
+        {
+          "name": "chat",
+          "method": "POST",
+          "path": "/api/agent/chat",
+          "started_at": "2026-10-12T15:43:22+08:00",
+          "status": "passed",
+          "http_status": 200,
+          "duration_seconds": 6.159
+        },
+        {
+          "name": "restore_chat",
+          "method": "GET",
+          "path": "/api/chat/sessions/73705998-c93a-41f0-97f2-2ceb37ce8530",
+          "started_at": "2026-10-12T15:43:29+08:00",
+          "status": "passed",
+          "http_status": 200,
+          "duration_seconds": 0.006
+        },
+        {
+          "name": "export_report",
+          "method": "POST",
+          "path": "/api/report/export",
+          "started_at": "2026-10-12T15:43:29+08:00",
+          "status": "passed",
+          "http_status": 200,
+          "duration_seconds": 0.005
+        }
+      ],
+      "checks": [
+        {
+          "name": "explicit_major_preserved",
+          "status": "passed",
+          "evidence": "市场营销"
+        },
+        {
+          "name": "explicit_current_skills_preserved",
+          "status": "passed",
+          "evidence": [
+            "内容策划",
+            "平台运营"
+          ]
+        },
+        {
+          "name": "explicit_soft_skills_preserved",
+          "status": "passed",
+          "evidence": [
+            "团队合作"
+          ]
+        },
+        {
+          "name": "explicit_target_roles_preserved",
+          "status": "passed",
+          "evidence": [
+            "新媒体运营"
+          ]
+        },
+        {
+          "name": "explicit_weekly_learning_time_preserved",
+          "status": "passed",
+          "evidence": "每周 6-10 小时"
+        },
+        {
+          "name": "only_selected_domain_returned",
+          "status": "passed",
+          "evidence": [
+            "新媒体运营",
+            "内容运营",
+            "市场助理"
+          ]
+        },
+        {
+          "name": "target_has_evidence_score",
+          "status": "passed",
+          "evidence": {
+            "role_name": "新媒体运营",
+            "score": 37,
+            "matched_skills": [
+              "内容策划",
+              "平台运营"
+            ],
+            "missing_skills": [
+              "图文编辑",
+              "社群运营",
+              "活动执行",
+              "效果评估"
+            ],
+            "matched_soft_skills": [
+              "团队协作"
+            ],
+            "missing_soft_skills": [
+              "沟通协调",
+              "主动学习"
+            ],
+            "target_preference": true,
+            "interest_relevant": false,
+            "evidence": "基于岗位标准中的 6 项核心技能、3 项软素质，以及你填写的目标与兴趣；未填写的能力不视为已掌握。 这是当前标准的覆盖参考，不是录用概率或跨领域统一适合度。",
+            "role_id": "pilot-new-media-operations",
+            "domain": "marketing_content",
+            "domain_label": "市场与内容",
+            "standard_source": {
+              "type": "manual_pilot",
+              "version": "manual-pilot-2026-10-12-v2",
+              "region": "中国大陆",
+              "review_status": "source_checked",
+              "reviewed_at": "2026-10-12",
+              "sources": [
+                {
+                  "title": "教育部2025网络营销与直播电商专业教学标准（高职专科）",
+                  "url": "https://www.moe.gov.cn/s78/A07/zcs_ztzl/2017_zt06/17zt06_bznr/bznr_zyjyzyjxbz/gdzyjy_zk/zk_cjsmdl/cjsmdl_dzswl/202502/P020250207542166351483.pdf",
+                  "kind": "education_standard",
+                  "published_at": "2025-02-11",
+                  "evidence_location": "第4页市场策划、内容策划与编辑；第5页新媒体运营",
+                  "accessed_at": "2026-10-11",
+                  "access_status": "已读取教育部hudong同路径PDF全文"
+                },
+                {
+                  "title": "美图官网：社区运营实习任务例证",
+                  "url": "https://hr.meitu.com/en/jobIntern/67148428-1fc1-4e48-8d36-00bb1ee33826",
+                  "kind": "employer_example",
+                  "published_at": null,
+                  "evidence_location": "岗位职责中的选题、发布复盘、活动、社群和反馈支持",
+                  "accessed_at": "2026-10-11",
+                  "access_status": "已读取官网正文；发布日期及当前在招状态未核实"
+                }
+              ],
+              "limitations": [
+                "内容运营与新媒体运营存在任务交叉，此处按内容生产与平台用户运营重点区分，不能认为互斥法定职业。",
+                "从公开资料选取并归纳的初级任务试点；未经过岗位从业者评审，不代表所有雇主或本科专业的要求。",
+                "教学标准为培养背景，雇主页面仅为任务例证；未导入招聘语料、统计需求频率或评价推荐准确率。"
+              ],
+              "tasks": [
+                "准备平台内容与发布计划",
+                "协助平台活动和社群互动",
+                "记录运营效果并提出改进"
+              ]
+            }
+          }
+        },
+        {
+          "name": "explicit_aliases_match_only_recorded_requirements",
+          "status": "passed",
+          "evidence": [
+            "内容策划",
+            "平台运营"
+          ]
+        },
+        {
+          "name": "pilot_source_is_recorded",
+          "status": "passed",
+          "evidence": {
+            "type": "manual_pilot",
+            "version": "manual-pilot-2026-10-12-v2",
+            "region": "中国大陆",
+            "review_status": "source_checked",
+            "reviewed_at": "2026-10-12",
+            "sources": [
+              {
+                "title": "教育部2025网络营销与直播电商专业教学标准（高职专科）",
+                "url": "https://www.moe.gov.cn/s78/A07/zcs_ztzl/2017_zt06/17zt06_bznr/bznr_zyjyzyjxbz/gdzyjy_zk/zk_cjsmdl/cjsmdl_dzswl/202502/P020250207542166351483.pdf",
+                "kind": "education_standard",
+                "published_at": "2025-02-11",
+                "evidence_location": "第4页市场策划、内容策划与编辑；第5页新媒体运营",
+                "accessed_at": "2026-10-11",
+                "access_status": "已读取教育部hudong同路径PDF全文"
+              },
+              {
+                "title": "美图官网：社区运营实习任务例证",
+                "url": "https://hr.meitu.com/en/jobIntern/67148428-1fc1-4e48-8d36-00bb1ee33826",
+                "kind": "employer_example",
+                "published_at": null,
+                "evidence_location": "岗位职责中的选题、发布复盘、活动、社群和反馈支持",
+                "accessed_at": "2026-10-11",
+                "access_status": "已读取官网正文；发布日期及当前在招状态未核实"
+              }
+            ],
+            "limitations": [
+              "内容运营与新媒体运营存在任务交叉，此处按内容生产与平台用户运营重点区分，不能认为互斥法定职业。",
+              "从公开资料选取并归纳的初级任务试点；未经过岗位从业者评审，不代表所有雇主或本科专业的要求。",
+              "教学标准为培养背景，雇主页面仅为任务例证；未导入招聘语料、统计需求频率或评价推荐准确率。"
+            ],
+            "tasks": [
+              "准备平台内容与发布计划",
+              "协助平台活动和社群互动",
+              "记录运营效果并提出改进"
+            ]
+          }
+        },
+        {
+          "name": "gap_does_not_replace_deterministic_score",
+          "status": "passed",
+          "evidence": {
+            "recommendation": 37,
+            "gap": 37
+          }
+        },
+        {
+          "name": "gap_keeps_source",
+          "status": "passed"
+        },
+        {
+          "name": "generated_plan_has_tasks_and_source",
+          "status": "passed"
+        },
+        {
+          "name": "pilot_plan_is_bounded",
+          "status": "passed"
+        },
+        {
+          "name": "stage_uses_contiguous_bounded_weeks",
+          "status": "passed",
+          "evidence": "第1–2周"
+        },
+        {
+          "name": "task_has_action_deliverable_self_check_and_hours",
+          "status": "passed",
+          "evidence": "能力：图文编辑；学习并实践使用Canva进行图文设计；产出：完成至少5篇图文编辑作品；自查：对比Canva官方教程作品，检查排版、设计、内容质量；预计8小时"
+        },
+        {
+          "name": "task_has_action_deliverable_self_check_and_hours",
+          "status": "passed",
+          "evidence": "能力：社群运营；模拟使用微信群进行社群运营，发布内容并管理互动；产出：建立并管理一个模拟微信群，记录运营日志；自查：分析社群活跃度、用户反馈，评估运营效果；预计6小时"
+        },
+        {
+          "name": "stage_hours_fit_synthetic_weekly_budget",
+          "status": "passed",
+          "evidence": {
+            "stage": "入门阶段",
+            "weeks": 2,
+            "estimated_task_hours": 14.0,
+            "weekly_budget_upper_bound": 10
+          }
+        },
+        {
+          "name": "resources_use_only_recorded_source_urls",
+          "status": "passed",
+          "evidence": []
+        },
+        {
+          "name": "tasks_target_unmatched_capabilities",
+          "status": "passed",
+          "evidence": [
+            "能力：图文编辑；学习并实践使用Canva进行图文设计；产出：完成至少5篇图文编辑作品；自查：对比Canva官方教程作品，检查排版、设计、内容质量；预计8小时",
+            "能力：社群运营；模拟使用微信群进行社群运营，发布内容并管理互动；产出：建立并管理一个模拟微信群，记录运营日志；自查：分析社群活跃度、用户反馈，评估运营效果；预计6小时"
+          ]
+        },
+        {
+          "name": "no_unverified_qualification_tasks",
+          "status": "passed",
+          "evidence": [
+            "能力：图文编辑；学习并实践使用Canva进行图文设计；产出：完成至少5篇图文编辑作品；自查：对比Canva官方教程作品，检查排版、设计、内容质量；预计8小时",
+            "能力：社群运营；模拟使用微信群进行社群运营，发布内容并管理互动；产出：建立并管理一个模拟微信群，记录运营日志；自查：分析社群活跃度、用户反馈，评估运营效果；预计6小时"
+          ]
+        },
+        {
+          "name": "saved_plan_restores_generated_content",
+          "status": "passed"
+        },
+        {
+          "name": "task_progress_survives_restore",
+          "status": "passed",
+          "evidence": [
+            "入门阶段::能力：图文编辑；学习并实践使用Canva进行图文设计；产出：完成至少5篇图文编辑作品；自查：对比Canva官方教程作品，检查排版、设计、内容质量；预计8小时"
+          ]
+        },
+        {
+          "name": "bound_chat_and_reply_survive_restore",
+          "status": "passed"
+        },
+        {
+          "name": "export_keeps_selected_version_profile_source_and_task",
+          "status": "passed"
+        }
+      ],
+      "ai_http_requests": 4,
+      "content_review": {
+        "manual_review_required": true,
+        "automatic_quality_score": null,
+        "task_structure_and_budget": [
+          {
+            "phase": "入门阶段",
+            "weeks": 2,
+            "estimated_task_hours": 14.0
+          }
+        ],
+        "programming_terms_for_manual_review": [],
+        "qualification_claims_for_manual_review": [],
+        "generated_resource_references": []
+      },
+      "profile_extraction": {
+        "profile": {
+          "name": "合成试点同学",
+          "education_level": "本科",
+          "major": "市场营销",
+          "grade": "大三",
+          "location": "中国大陆",
+          "current_skills": [
+            "内容策划",
+            "平台运营"
+          ],
+          "certificates": [],
+          "internship_experience": "仅在虚构课程材料中练习已填报的两项技能，没有真实雇主、候选人或导师可参与。",
+          "soft_skills": [
+            "团队合作"
+          ],
+          "innovation_potential": "暂无",
+          "target_roles": [
+            "新媒体运营"
+          ],
+          "interests": [],
+          "weekly_learning_time": "每周 6-10 小时",
+          "competitiveness_score": 66
+        },
+        "is_complete": true,
+        "missing_fields": [],
+        "next_questions": []
+      },
+      "restored_profile": {
+        "name": "合成试点同学",
+        "education_level": "本科",
+        "major": "市场营销",
+        "grade": "大三",
+        "location": "中国大陆",
+        "current_skills": [
+          "内容策划",
+          "平台运营"
+        ],
+        "certificates": [],
+        "internship_experience": "仅在虚构课程材料中练习已填报的两项技能，没有真实雇主、候选人或导师可参与。",
+        "soft_skills": [
+          "团队合作"
+        ],
+        "innovation_potential": "暂无",
+        "target_roles": [
+          "新媒体运营"
+        ],
+        "interests": [],
+        "weekly_learning_time": "每周 6-10 小时",
+        "competitiveness_score": 66
+      },
+      "recommendations": {
+        "data": [
+          {
+            "role_name": "新媒体运营",
+            "score": 37,
+            "matched_skills": [
+              "内容策划",
+              "平台运营"
+            ],
+            "missing_skills": [
+              "图文编辑",
+              "社群运营",
+              "活动执行",
+              "效果评估"
+            ],
+            "matched_soft_skills": [
+              "团队协作"
+            ],
+            "missing_soft_skills": [
+              "沟通协调",
+              "主动学习"
+            ],
+            "target_preference": true,
+            "interest_relevant": false,
+            "evidence": "基于岗位标准中的 6 项核心技能、3 项软素质，以及你填写的目标与兴趣；未填写的能力不视为已掌握。 这是当前标准的覆盖参考，不是录用概率或跨领域统一适合度。",
+            "role_id": "pilot-new-media-operations",
+            "domain": "marketing_content",
+            "domain_label": "市场与内容",
+            "standard_source": {
+              "type": "manual_pilot",
+              "version": "manual-pilot-2026-10-12-v2",
+              "region": "中国大陆",
+              "review_status": "source_checked",
+              "reviewed_at": "2026-10-12",
+              "sources": [
+                {
+                  "title": "教育部2025网络营销与直播电商专业教学标准（高职专科）",
+                  "url": "https://www.moe.gov.cn/s78/A07/zcs_ztzl/2017_zt06/17zt06_bznr/bznr_zyjyzyjxbz/gdzyjy_zk/zk_cjsmdl/cjsmdl_dzswl/202502/P020250207542166351483.pdf",
+                  "kind": "education_standard",
+                  "published_at": "2025-02-11",
+                  "evidence_location": "第4页市场策划、内容策划与编辑；第5页新媒体运营",
+                  "accessed_at": "2026-10-11",
+                  "access_status": "已读取教育部hudong同路径PDF全文"
+                },
+                {
+                  "title": "美图官网：社区运营实习任务例证",
+                  "url": "https://hr.meitu.com/en/jobIntern/67148428-1fc1-4e48-8d36-00bb1ee33826",
+                  "kind": "employer_example",
+                  "published_at": null,
+                  "evidence_location": "岗位职责中的选题、发布复盘、活动、社群和反馈支持",
+                  "accessed_at": "2026-10-11",
+                  "access_status": "已读取官网正文；发布日期及当前在招状态未核实"
+                }
+              ],
+              "limitations": [
+                "内容运营与新媒体运营存在任务交叉，此处按内容生产与平台用户运营重点区分，不能认为互斥法定职业。",
+                "从公开资料选取并归纳的初级任务试点；未经过岗位从业者评审，不代表所有雇主或本科专业的要求。",
+                "教学标准为培养背景，雇主页面仅为任务例证；未导入招聘语料、统计需求频率或评价推荐准确率。"
+              ],
+              "tasks": [
+                "准备平台内容与发布计划",
+                "协助平台活动和社群互动",
+                "记录运营效果并提出改进"
+              ]
+            }
+          },
+          {
+            "role_name": "内容运营",
+            "score": 18,
+            "matched_skills": [
+              "内容策划"
+            ],
+            "missing_skills": [
+              "文案写作",
+              "图文编辑",
+              "内容合规",
+              "用户反馈整理",
+              "效果评估"
+            ],
+            "matched_soft_skills": [
+              "团队协作"
+            ],
+            "missing_soft_skills": [
+              "沟通协调",
+              "主动学习"
+            ],
+            "target_preference": false,
+            "interest_relevant": false,
+            "evidence": "基于岗位标准中的 6 项核心技能、3 项软素质，以及你填写的目标与兴趣；未填写的能力不视为已掌握。 这是当前标准的覆盖参考，不是录用概率或跨领域统一适合度。",
+            "role_id": "pilot-content-operations",
+            "domain": "marketing_content",
+            "domain_label": "市场与内容",
+            "standard_source": {
+              "type": "manual_pilot",
+              "version": "manual-pilot-2026-10-12-v2",
+              "region": "中国大陆",
+              "review_status": "source_checked",
+              "reviewed_at": "2026-10-12",
+              "sources": [
+                {
+                  "title": "教育部2025网络营销与直播电商专业教学标准（高职专科）",
+                  "url": "https://www.moe.gov.cn/s78/A07/zcs_ztzl/2017_zt06/17zt06_bznr/bznr_zyjyzyjxbz/gdzyjy_zk/zk_cjsmdl/cjsmdl_dzswl/202502/P020250207542166351483.pdf",
+                  "kind": "education_standard",
+                  "published_at": "2025-02-11",
+                  "evidence_location": "第4页市场策划、内容策划与编辑；第5页新媒体运营",
+                  "accessed_at": "2026-10-11",
+                  "access_status": "已读取教育部hudong同路径PDF全文"
+                },
+                {
+                  "title": "多少科技官网：内容运营实习生任务例证",
+                  "url": "https://moreless.io/joinus",
+                  "kind": "employer_example",
+                  "published_at": null,
+                  "evidence_location": "内容运营实习生段落：内容策划、维护、反馈与需求整理",
+                  "accessed_at": "2026-10-11",
+                  "access_status": "已读取官网正文；发布日期及当前在招状态未核实"
+                }
+              ],
+              "limitations": [
+                "不同产品的领域知识要求未统一建模；少量来源不证明能力清单代表全国岗位分布。",
+                "从公开资料选取并归纳的初级任务试点；未经过岗位从业者评审，不代表所有雇主或本科专业的要求。",
+                "教学标准为培养背景，雇主页面仅为任务例证；未导入招聘语料、统计需求频率或评价推荐准确率。"
+              ],
+              "tasks": [
+                "策划并编辑内容",
+                "选择渠道并维护内容发布",
+                "整理用户反馈和内容效果"
+              ]
+            }
+          },
+          {
+            "role_name": "市场助理",
+            "score": 5,
+            "matched_skills": [],
+            "missing_skills": [
+              "市场调研",
+              "营销策划",
+              "活动执行",
+              "文案写作",
+              "电子表格",
+              "效果评估"
+            ],
+            "matched_soft_skills": [
+              "团队协作"
+            ],
+            "missing_soft_skills": [
+              "沟通协调",
+              "主动学习"
+            ],
+            "target_preference": false,
+            "interest_relevant": false,
+            "evidence": "基于岗位标准中的 6 项核心技能、3 项软素质，以及你填写的目标与兴趣；未填写的能力不视为已掌握。 这是当前标准的覆盖参考，不是录用概率或跨领域统一适合度。",
+            "role_id": "pilot-marketing-assistant",
+            "domain": "marketing_content",
+            "domain_label": "市场与内容",
+            "standard_source": {
+              "type": "manual_pilot",
+              "version": "manual-pilot-2026-10-12-v2",
+              "region": "中国大陆",
+              "review_status": "source_checked",
+              "reviewed_at": "2026-10-12",
+              "sources": [
+                {
+                  "title": "教育部2025网络营销与直播电商专业教学标准（高职专科）",
+                  "url": "https://www.moe.gov.cn/s78/A07/zcs_ztzl/2017_zt06/17zt06_bznr/bznr_zyjyzyjxbz/gdzyjy_zk/zk_cjsmdl/cjsmdl_dzswl/202502/P020250207542166351483.pdf",
+                  "kind": "education_standard",
+                  "published_at": "2025-02-11",
+                  "evidence_location": "第4页市场策划、内容策划与编辑；第5页新媒体运营",
+                  "accessed_at": "2026-10-11",
+                  "access_status": "已读取教育部hudong同路径PDF全文"
+                }
+              ],
+              "limitations": [
+                "没有建立市场助理招聘样本集；活动执行为项目选择的助理任务，不表示可独立制定完整营销战略。",
+                "从公开资料选取并归纳的初级任务试点；未经过岗位从业者评审，不代表所有雇主或本科专业的要求。",
+                "教学标准为培养背景，雇主页面仅为任务例证；未导入招聘语料、统计需求频率或评价推荐准确率。",
+                "本角色尚无已核实的直接雇主任务页面；主要依据教学标准和项目对初级支持任务的拆分。"
+              ],
+              "tasks": [
+                "整理市场与竞品信息",
+                "协助营销活动策划及执行",
+                "整理活动反馈与效果记录"
+              ]
+            }
+          }
+        ],
+        "scoring_method": "核心技能 80%、软素质 15%、目标/兴趣 5%；证据不足不计算百分比。分数仅是标准覆盖参考，不能作为跨领域统一适合度或录用概率。"
+      },
+      "gap_analysis": {
+        "target_role": "新媒体运营",
+        "overall_match_score": 37,
+        "basic_matching": {
+          "score": 80,
+          "analysis": "用户的教育背景与目标岗位相关，本科市场营销专业与新媒体运营有一定的相关性。",
+          "suggestions": []
+        },
+        "skill_matching": {
+          "score": 75,
+          "analysis": "用户已掌握内容策划和平台运营两项技能，这两项与岗位要求完全匹配。然而，用户在图文编辑、社群运营、活动执行和效果评估方面存在差距，这些是岗位的关键技能要求。",
+          "suggestions": []
+        },
+        "soft_skill_matching": {
+          "score": 90,
+          "analysis": "用户具备团队合作这一软技能，这是新媒体运营岗位所看重的。其他软技能如沟通协调和主动学习在用户信息中未提及，可能需要进一步培养。",
+          "suggestions": []
+        },
+        "potential_matching": {
+          "score": 85,
+          "analysis": "用户表现出较强的学习意愿，每周投入6-10小时学习，这表明用户有潜力通过学习和实践来提升自己的技能，以更好地适应新媒体运营岗位。",
+          "suggestions": []
+        },
+        "immediate_next_steps": [
+          "提升图文编辑技能",
+          "学习社群运营和活动执行",
+          "提高效果评估能力"
+        ],
+        "roadmap_preview": "用户应专注于提升图文编辑、社群运营和活动执行等技能，同时加强效果评估能力的培养，以更好地满足新媒体运营岗位的要求。",
+        "matched_requirements": [
+          "内容策划",
+          "平台运营"
+        ],
+        "missing_requirements": [
+          "图文编辑",
+          "社群运营",
+          "活动执行",
+          "效果评估"
+        ],
+        "skill_coverage": 33,
+        "soft_skill_coverage": 33,
+        "standard_source": {
+          "type": "manual_pilot",
+          "version": "manual-pilot-2026-10-12-v2",
+          "region": "中国大陆",
+          "review_status": "source_checked",
+          "reviewed_at": "2026-10-12",
+          "sources": [
+            {
+              "title": "教育部2025网络营销与直播电商专业教学标准（高职专科）",
+              "url": "https://www.moe.gov.cn/s78/A07/zcs_ztzl/2017_zt06/17zt06_bznr/bznr_zyjyzyjxbz/gdzyjy_zk/zk_cjsmdl/cjsmdl_dzswl/202502/P020250207542166351483.pdf",
+              "kind": "education_standard",
+              "published_at": "2025-02-11",
+              "evidence_location": "第4页市场策划、内容策划与编辑；第5页新媒体运营",
+              "accessed_at": "2026-10-11",
+              "access_status": "已读取教育部hudong同路径PDF全文"
+            },
+            {
+              "title": "美图官网：社区运营实习任务例证",
+              "url": "https://hr.meitu.com/en/jobIntern/67148428-1fc1-4e48-8d36-00bb1ee33826",
+              "kind": "employer_example",
+              "published_at": null,
+              "evidence_location": "岗位职责中的选题、发布复盘、活动、社群和反馈支持",
+              "accessed_at": "2026-10-11",
+              "access_status": "已读取官网正文；发布日期及当前在招状态未核实"
+            }
+          ],
+          "limitations": [
+            "内容运营与新媒体运营存在任务交叉，此处按内容生产与平台用户运营重点区分，不能认为互斥法定职业。",
+            "从公开资料选取并归纳的初级任务试点；未经过岗位从业者评审，不代表所有雇主或本科专业的要求。",
+            "教学标准为培养背景，雇主页面仅为任务例证；未导入招聘语料、统计需求频率或评价推荐准确率。"
+          ],
+          "tasks": [
+            "准备平台内容与发布计划",
+            "协助平台活动和社群互动",
+            "记录运营效果并提出改进"
+          ]
+        }
+      },
+      "generated_roadmap": {
+        "id": 6,
+        "created_at": "2026-10-12T07:43:22.780562+00:00",
+        "completed_tasks": [],
+        "target_role": "新媒体运营",
+        "summary": "针对新媒体运营岗位的入门学习路径规划",
+        "milestones": [
+          {
+            "phase": "入门阶段",
+            "period": "第1–2周",
+            "focus_targets": [
+              "能力：图文编辑；学习并实践使用Canva进行图文设计；产出：完成至少5篇图文编辑作品；自查：对比Canva官方教程作品，检查排版、设计、内容质量；预计8小时",
+              "能力：社群运营；模拟使用微信群进行社群运营，发布内容并管理互动；产出：建立并管理一个模拟微信群，记录运营日志；自查：分析社群活跃度、用户反馈，评估运营效果；预计6小时"
+            ],
+            "recommended_resources": []
+          }
+        ],
+        "conclusion": "通过两周的入门阶段，合成试点同学将掌握图文编辑和社群运营的基本技能，为后续的新媒体运营工作打下基础。",
+        "standard_source": {
+          "type": "manual_pilot",
+          "version": "manual-pilot-2026-10-12-v2",
+          "region": "中国大陆",
+          "review_status": "source_checked",
+          "reviewed_at": "2026-10-12",
+          "sources": [
+            {
+              "title": "教育部2025网络营销与直播电商专业教学标准（高职专科）",
+              "url": "https://www.moe.gov.cn/s78/A07/zcs_ztzl/2017_zt06/17zt06_bznr/bznr_zyjyzyjxbz/gdzyjy_zk/zk_cjsmdl/cjsmdl_dzswl/202502/P020250207542166351483.pdf",
+              "kind": "education_standard",
+              "published_at": "2025-02-11",
+              "evidence_location": "第4页市场策划、内容策划与编辑；第5页新媒体运营",
+              "accessed_at": "2026-10-11",
+              "access_status": "已读取教育部hudong同路径PDF全文"
+            },
+            {
+              "title": "美图官网：社区运营实习任务例证",
+              "url": "https://hr.meitu.com/en/jobIntern/67148428-1fc1-4e48-8d36-00bb1ee33826",
+              "kind": "employer_example",
+              "published_at": null,
+              "evidence_location": "岗位职责中的选题、发布复盘、活动、社群和反馈支持",
+              "accessed_at": "2026-10-11",
+              "access_status": "已读取官网正文；发布日期及当前在招状态未核实"
+            }
+          ],
+          "limitations": [
+            "内容运营与新媒体运营存在任务交叉，此处按内容生产与平台用户运营重点区分，不能认为互斥法定职业。",
+            "从公开资料选取并归纳的初级任务试点；未经过岗位从业者评审，不代表所有雇主或本科专业的要求。",
+            "教学标准为培养背景，雇主页面仅为任务例证；未导入招聘语料、统计需求频率或评价推荐准确率。"
+          ],
+          "tasks": [
+            "准备平台内容与发布计划",
+            "协助平台活动和社群互动",
+            "记录运营效果并提出改进"
+          ]
+        },
+        "standard_notice": "依据人工试点职业标准规划；只经过来源核对，建议仍需结合具体岗位和个人经历复核。 入门路径仅选取标准列表中的前两项可练习能力：图文编辑、社群运营；其余差距未在本次覆盖，这个顺序不代表已验证的职业重要性。",
+        "generation_attempts": 2
+      },
+      "restored_roadmap": {
+        "id": 6,
+        "created_at": "2026-10-12T07:43:22.780562+00:00",
+        "completed_tasks": [
+          "入门阶段::能力：图文编辑；学习并实践使用Canva进行图文设计；产出：完成至少5篇图文编辑作品；自查：对比Canva官方教程作品，检查排版、设计、内容质量；预计8小时"
+        ],
+        "target_role": "新媒体运营",
+        "summary": "针对新媒体运营岗位的入门学习路径规划",
+        "milestones": [
+          {
+            "phase": "入门阶段",
+            "period": "第1–2周",
+            "focus_targets": [
+              "能力：图文编辑；学习并实践使用Canva进行图文设计；产出：完成至少5篇图文编辑作品；自查：对比Canva官方教程作品，检查排版、设计、内容质量；预计8小时",
+              "能力：社群运营；模拟使用微信群进行社群运营，发布内容并管理互动；产出：建立并管理一个模拟微信群，记录运营日志；自查：分析社群活跃度、用户反馈，评估运营效果；预计6小时"
+            ],
+            "recommended_resources": []
+          }
+        ],
+        "conclusion": "通过两周的入门阶段，合成试点同学将掌握图文编辑和社群运营的基本技能，为后续的新媒体运营工作打下基础。",
+        "standard_source": {
+          "type": "manual_pilot",
+          "version": "manual-pilot-2026-10-12-v2",
+          "region": "中国大陆",
+          "review_status": "source_checked",
+          "reviewed_at": "2026-10-12",
+          "sources": [
+            {
+              "title": "教育部2025网络营销与直播电商专业教学标准（高职专科）",
+              "url": "https://www.moe.gov.cn/s78/A07/zcs_ztzl/2017_zt06/17zt06_bznr/bznr_zyjyzyjxbz/gdzyjy_zk/zk_cjsmdl/cjsmdl_dzswl/202502/P020250207542166351483.pdf",
+              "kind": "education_standard",
+              "published_at": "2025-02-11",
+              "evidence_location": "第4页市场策划、内容策划与编辑；第5页新媒体运营",
+              "accessed_at": "2026-10-11",
+              "access_status": "已读取教育部hudong同路径PDF全文"
+            },
+            {
+              "title": "美图官网：社区运营实习任务例证",
+              "url": "https://hr.meitu.com/en/jobIntern/67148428-1fc1-4e48-8d36-00bb1ee33826",
+              "kind": "employer_example",
+              "published_at": null,
+              "evidence_location": "岗位职责中的选题、发布复盘、活动、社群和反馈支持",
+              "accessed_at": "2026-10-11",
+              "access_status": "已读取官网正文；发布日期及当前在招状态未核实"
+            }
+          ],
+          "limitations": [
+            "内容运营与新媒体运营存在任务交叉，此处按内容生产与平台用户运营重点区分，不能认为互斥法定职业。",
+            "从公开资料选取并归纳的初级任务试点；未经过岗位从业者评审，不代表所有雇主或本科专业的要求。",
+            "教学标准为培养背景，雇主页面仅为任务例证；未导入招聘语料、统计需求频率或评价推荐准确率。"
+          ],
+          "tasks": [
+            "准备平台内容与发布计划",
+            "协助平台活动和社群互动",
+            "记录运营效果并提出改进"
+          ]
+        },
+        "standard_notice": "依据人工试点职业标准规划；只经过来源核对，建议仍需结合具体岗位和个人经历复核。 入门路径仅选取标准列表中的前两项可练习能力：图文编辑、社群运营；其余差距未在本次覆盖，这个顺序不代表已验证的职业重要性。",
+        "generation_attempts": 2
+      },
+      "chat_response": {
+        "session_id": "73705998-c93a-41f0-97f2-2ceb37ce8530",
+        "reply": "根据您目前所保存的路径和已勾选的任务，您本周的行动应该是：\n\n**能力：社群运营；模拟使用微信群进行社群运营，发布内容并管理互动；产出：建立并管理一个模拟微信群，记录运营日志；自查：分析社群活跃度、用户反馈，评估运营效果；预计6小时**\n\n这是基于有限标准试点所提供的建议，目的是帮助您针对新媒体运营岗位进行入门学习。请注意，这个建议是基于当前的标准和试点，不代表所有雇主或本科专业的要求。同时，这个顺序不代表已验证的职业重要性。",
+        "graph_data": null,
+        "blocks": []
+      },
+      "restored_chat": {
+        "id": "73705998-c93a-41f0-97f2-2ceb37ce8530",
+        "target_role": "新媒体运营",
+        "roadmap_id": 6,
+        "created_at": "2026-10-12T07:43:22.849584+00:00",
+        "messages": [
+          {
+            "id": 11,
+            "role": "user",
+            "content": "请基于已保存路径和已勾选任务，给我下一项本周行动。注明这是有限标准试点，不要虚构招聘热度、薪资或资格承诺，不要建议转向编程。",
+            "graph_data": null
+          },
+          {
+            "id": 12,
+            "role": "assistant",
+            "content": "根据您目前所保存的路径和已勾选的任务，您本周的行动应该是：\n\n**能力：社群运营；模拟使用微信群进行社群运营，发布内容并管理互动；产出：建立并管理一个模拟微信群，记录运营日志；自查：分析社群活跃度、用户反馈，评估运营效果；预计6小时**\n\n这是基于有限标准试点所提供的建议，目的是帮助您针对新媒体运营岗位进行入门学习。请注意，这个建议是基于当前的标准和试点，不代表所有雇主或本科专业的要求。同时，这个顺序不代表已验证的职业重要性。",
+            "graph_data": null
+          }
+        ]
+      },
+      "report_file": "pilot-new-media-operations-report.md"
+    }
+  ],
+  "expected_case_count": 1,
+  "duration_seconds": 55.861
+}

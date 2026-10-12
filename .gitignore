@@ -3,6 +3,7 @@ data/jobs-data.md
 data/*.xls
 data/*.xlsx
 *.db
+*.db-*
 
 # 本地配置、依赖和缓存
 .env
@@ -22,3 +23,6 @@ __pycache__/
 
 # 运行时生成的私有语音文件
 static/audio/
+
+# 隔离演示数据库、验证日志与临时文件
+tmp/

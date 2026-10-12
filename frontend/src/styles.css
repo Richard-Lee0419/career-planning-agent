@@ -2042,7 +2042,7 @@ textarea {
 
 .roadmap-phase-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
   gap: 18px;
 }
 
@@ -2181,8 +2181,7 @@ textarea {
 
   .feature-grid,
   .process-band,
-  .recommendation-card-grid,
-  .roadmap-phase-grid {
+  .recommendation-card-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -2820,6 +2819,14 @@ textarea {
   border-left: 4px solid var(--sky-blue) !important;
 }
 
+.story-next-task .ant-card-body > div {
+  min-width: 0;
+}
+
+.story-next-task .ant-card-body > .ant-btn {
+  flex-shrink: 0;
+}
+
 .story-next-task h3.ant-typography {
   margin: 7px 0;
   color: var(--text-main);
@@ -3135,4 +3142,22 @@ textarea {
   .career-graph-list li {
     padding: 12px;
   }
+}
+
+.career-domain-select {
+  min-width: 210px;
+  max-width: 100%;
+}
+
+.standard-source-note {
+  margin: 12px 0;
+  overflow-wrap: anywhere;
+}
+
+.standard-source-note .ant-collapse-header {
+  padding-left: 0 !important;
+}
+
+.standard-source-note .ant-list-item {
+  align-items: flex-start;
 }

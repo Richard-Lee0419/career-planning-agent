@@ -1,0 +1,142 @@
+{
+  "started_at": "2026-10-12T07:52:40.948Z",
+  "status": "passed",
+  "frontend_origin": "http://localhost:5175",
+  "mode": "real API, saved synthetic roadmap; no intercepted requests",
+  "checks": [
+    {
+      "name": "login_and_dashboard_chart_render",
+      "status": "passed",
+      "evidence": {
+        "route": "/dashboard",
+        "canvases": 1
+      }
+    },
+    {
+      "name": "recommendations_stay_in_marketing_domain",
+      "status": "passed",
+      "evidence": [
+        "内容运营",
+        "市场助理",
+        "新媒体运营"
+      ]
+    },
+    {
+      "name": "source_links_and_version_visible",
+      "status": "passed",
+      "evidence": {
+        "version": "manual-pilot-2026-10-12-v2",
+        "sourceLinks": 1
+      }
+    },
+    {
+      "name": "actual_saved_tasks_restore",
+      "status": "passed",
+      "evidence": {
+        "roadmap_id": 1,
+        "taskCount": 2
+      }
+    },
+    {
+      "name": "progress_check_survives_reload",
+      "status": "passed",
+      "evidence": true
+    },
+    {
+      "name": "progress_uncheck_survives_reload",
+      "status": "passed",
+      "evidence": true
+    },
+    {
+      "name": "native_browser_download_contains_current_progress_and_source",
+      "status": "passed",
+      "evidence": {
+        "bytes": 3303,
+        "filename": "Career_Report_1.md"
+      }
+    },
+    {
+      "name": "real_model_generation_through_ui_saves_new_version",
+      "status": "passed",
+      "evidence": {
+        "roadmap_id": 7,
+        "app_model_calls": 2,
+        "source_version": "manual-pilot-2026-10-12-v2"
+      }
+    },
+    {
+      "name": "no_javascript_page_errors_in_checked_routes",
+      "status": "passed",
+      "evidence": true
+    }
+  ],
+  "page_errors": [],
+  "screenshots": [
+    "recommendations.png",
+    "saved-roadmap.png",
+    "generated-roadmap.png"
+  ],
+  "browser_version": "155.0.4283.45",
+  "generated_roadmap": {
+    "id": 7,
+    "created_at": "2026-10-12T07:53:32.857576+00:00",
+    "completed_tasks": [],
+    "target_role": "内容运营",
+    "summary": "合成内容同学，大三市场营销专业学生，希望成为内容运营，具备文案撰写和图文排版技能，需提升内容策划和内容合规能力。",
+    "milestones": [
+      {
+        "phase": "入门阶段",
+        "period": "第1–2周",
+        "focus_targets": [
+          "能力：内容策划；阅读至少3个内容策划案例，总结案例特点，并撰写一篇简短的内容策划分析报告。；产出：内容策划分析报告；自查：与案例特点进行对比，评估分析报告的准确性。；预计4小时",
+          "能力：内容合规；查找并阅读2篇内容合规相关的法规或指南，制作一份合规要点笔记。；产出：内容合规要点笔记；自查：对照法规或指南，检查笔记中是否涵盖了所有合规要点。；预计3小时"
+        ],
+        "recommended_resources": [
+          "岗位背景参考（非学习教程）—教育部2025网络营销与直播电商专业教学标准（高职专科）：https://www.moe.gov.cn/s78/A07/zcs_ztzl/2017_zt06/17zt06_bznr/bznr_zyjyzyjxbz/gdzyjy_zk/zk_cjsmdl/cjsmdl_dzswl/202502/P020250207542166351483.pdf",
+          "岗位背景参考（非学习教程）—多少科技官网：内容运营实习生任务例证：https://moreless.io/joinus"
+        ]
+      }
+    ],
+    "conclusion": "通过入门阶段的学习和实践，合成内容同学将初步掌握内容策划和内容合规的基本知识和技能，为后续的专业发展打下基础。",
+    "standard_source": {
+      "type": "manual_pilot",
+      "version": "manual-pilot-2026-10-12-v2",
+      "region": "中国大陆",
+      "review_status": "source_checked",
+      "reviewed_at": "2026-10-12",
+      "sources": [
+        {
+          "title": "教育部2025网络营销与直播电商专业教学标准（高职专科）",
+          "url": "https://www.moe.gov.cn/s78/A07/zcs_ztzl/2017_zt06/17zt06_bznr/bznr_zyjyzyjxbz/gdzyjy_zk/zk_cjsmdl/cjsmdl_dzswl/202502/P020250207542166351483.pdf",
+          "kind": "education_standard",
+          "published_at": "2025-02-11",
+          "evidence_location": "第4页市场策划、内容策划与编辑；第5页新媒体运营",
+          "accessed_at": "2026-10-11",
+          "access_status": "已读取教育部hudong同路径PDF全文"
+        },
+        {
+          "title": "多少科技官网：内容运营实习生任务例证",
+          "url": "https://moreless.io/joinus",
+          "kind": "employer_example",
+          "published_at": null,
+          "evidence_location": "内容运营实习生段落：内容策划、维护、反馈与需求整理",
+          "accessed_at": "2026-10-11",
+          "access_status": "已读取官网正文；发布日期及当前在招状态未核实"
+        }
+      ],
+      "limitations": [
+        "不同产品的领域知识要求未统一建模；少量来源不证明能力清单代表全国岗位分布。",
+        "从公开资料选取并归纳的初级任务试点；未经过岗位从业者评审，不代表所有雇主或本科专业的要求。",
+        "教学标准为培养背景，雇主页面仅为任务例证；未导入招聘语料、统计需求频率或评价推荐准确率。"
+      ],
+      "tasks": [
+        "策划并编辑内容",
+        "选择渠道并维护内容发布",
+        "整理用户反馈和内容效果"
+      ]
+    },
+    "standard_notice": "依据人工试点职业标准规划；只经过来源核对，建议仍需结合具体岗位和个人经历复核。 入门路径仅选取标准列表中的前两项可练习能力：内容策划、内容合规；其余差距未在本次覆盖，这个顺序不代表已验证的职业重要性。",
+    "generation_attempts": 2
+  },
+  "finished_at": "2026-10-12T07:53:33.523Z"
+}

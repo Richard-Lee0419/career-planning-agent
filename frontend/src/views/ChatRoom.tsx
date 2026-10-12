@@ -36,6 +36,7 @@ import { ChatBubble } from '../components/ChatBubble';
 import { GrowthJourney } from '../components/GrowthJourney';
 import { GapRadar } from '../components/GapRadar';
 import { RoadmapTimeline } from '../components/RoadmapTimeline';
+import { StandardSourceNote } from '../components/StandardSourceNote';
 import { useProfile } from '../hooks/useProfile';
 import { downloadBlob } from '../utils/download';
 import { pickFirstTarget } from '../utils/format';
@@ -287,7 +288,9 @@ export default function ChatRoom() {
         <div className="canvas-grid">
           <GapRadar data={gapData} />
           <div className="analysis-notes">
-            <Typography.Title level={4}>{gapData.overall_match_score}% 综合匹配度</Typography.Title>
+            <Typography.Title level={4}>{gapData.overall_match_score}% 岗位标准覆盖参考</Typography.Title>
+            <Typography.Paragraph type="secondary">依据已填写能力，不代表录用概率，不用于跨领域判断适合度。</Typography.Paragraph>
+            <StandardSourceNote source={gapData.standard_source} />
             <Typography.Paragraph type="secondary">已匹配：{gapData.matched_requirements?.join('、') || '暂无直接匹配'}；主要差距：{gapData.missing_requirements?.slice(0, 3).join('、') || '暂无'}</Typography.Paragraph>
             <Typography.Paragraph>{gapData.roadmap_preview}</Typography.Paragraph>
             <Space wrap>

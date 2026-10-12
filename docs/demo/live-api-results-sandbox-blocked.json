@@ -1,0 +1,24 @@
+{
+  "started_at": "2026-10-12T00:04:05+08:00",
+  "finished_at": "2026-10-12T00:04:21+08:00",
+  "status": "failed",
+  "base_url": "http://127.0.0.1:8011",
+  "http_timeout_seconds": 120,
+  "configured_model": "glm-4-flash",
+  "model_evidence": "Model configuration supplied by the operator for this backend; this API does not expose the provider response model metadata.",
+  "environment": {
+    "python": "3.13.3",
+    "httpx": "0.28.1"
+  },
+  "evidence_boundary": [
+    "Only synthetic profiles and isolated local service accounts are used.",
+    "No API key, bearer token, account password, or .env content is saved.",
+    "Real API/model integration is checked; recommendation accuracy and generated advice quality are not measured.",
+    "Each case uses four AI HTTP endpoints without client retries; learning-path has two model calls and gap may retry once on malformed output. SDK transport retries/fallback are not observable here.",
+    "Generated plans, resources and advice require manual review; no quality or hiring-effect claim follows from passing HTTP checks."
+  ],
+  "catalog": null,
+  "cases": [],
+  "error": "local service readiness failed: [WinError 10013] 以一种访问权限不允许的方式做了一个访问套接字的尝试。",
+  "duration_seconds": 15.682
+}

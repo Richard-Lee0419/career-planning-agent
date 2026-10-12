@@ -9,7 +9,15 @@ export async function fetchProfile() {
   const inFlight = profileRequests.get(key);
   if (inFlight) return inFlight;
   const request = apiClient.get<UserProfile>('/api/profile/me')
-    .then(({ data }) => data)
+    .then(({ data }) => {
+      const auth = useAuthStore.getState();
+      if (auth.token === key && auth.account) {
+        auth.setCurrentUser({ account: auth.account, profile: {
+          name: data.name, major: data.major, education_level: data.education_level, has_profile: true
+        } });
+      }
+      return data;
+    })
     .finally(() => profileRequests.delete(key));
   profileRequests.set(key, request);
   return request;
